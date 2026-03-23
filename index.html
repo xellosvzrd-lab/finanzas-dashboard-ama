@@ -2125,10 +2125,11 @@ function cargarCompartidos() {
   tfootReemb.innerHTML = tfootReembHtml;
 
   // ── BALANCE FINAL ────────────────────────────────────────────
-  // ARS: compartidos neto ARS + reembolsos ARS
-  const balanceFinalARS = totalCompNetARS + totalReembARS;
-  // USD: compartidos USD + reembolsos USD
-  const balanceFinalUSD = totalCompNetUSD + totalReembUSD;
+  // Perspectiva de Ama: ¿cuánto le debe Daniel a ella?
+  // totalCompNet = daniel - ama → positivo = Daniel pagó más → Ama le debe a Daniel → hay que NEGAR para balance de Ama
+  // totalReemb = gastos de Ama por Daniel → siempre a favor de Ama (+)
+  const balanceFinalARS = totalReembARS - totalCompNetARS;
+  const balanceFinalUSD = totalReembUSD - totalCompNetUSD;
 
   const balEl  = document.getElementById("comp-balance-valor");
   const balSub = document.getElementById("comp-balance-sub");
@@ -2138,11 +2139,14 @@ function cargarCompartidos() {
   balEl.textContent = fmt(Math.abs(balanceFinalARS)) + (hayUSD && balanceFinalUSD !== 0 ? " + " + fmtMoneda(Math.abs(balanceFinalUSD), "USD") : "");
   balEl.className   = "comp-balance-value " + (balanceFinalARS >= 0 ? "positivo" : "negativo");
 
+  // desglose: solo mostrar componentes que favorecen a Ama (Daniel le debe por eso)
+  const compAmaNetARS = -totalCompNetARS; // Ama pagó más en compartidos ARS → Daniel debe
+  const compAmaNetUSD = -totalCompNetUSD; // Ama pagó más en compartidos USD → Daniel debe
   const desglose = [];
-  if (totalCompNetARS  > 0) desglose.push(`Compartidos ARS: ${fmt(totalCompNetARS)}`);
-  if (totalReembARS    > 0) desglose.push(`Reembolsos ARS: ${fmt(totalReembARS)}`);
-  if (totalCompNetUSD  > 0) desglose.push(`Compartidos USD: ${fmtMoneda(totalCompNetUSD, "USD")}`);
-  if (totalReembUSD    > 0) desglose.push(`Reembolsos USD: ${fmtMoneda(totalReembUSD, "USD")}`);
+  if (compAmaNetARS > 0) desglose.push(`Compartidos ARS: ${fmt(compAmaNetARS)}`);
+  if (totalReembARS > 0) desglose.push(`Reembolsos ARS: ${fmt(totalReembARS)}`);
+  if (compAmaNetUSD > 0) desglose.push(`Compartidos USD: ${fmtMoneda(compAmaNetUSD, "USD")}`);
+  if (totalReembUSD > 0) desglose.push(`Reembolsos USD: ${fmtMoneda(totalReembUSD, "USD")}`);
 
   const debeAma = balanceFinalARS > 0 || balanceFinalUSD > 0;
   const vosDebés = balanceFinalARS < 0 || balanceFinalUSD < 0;
