@@ -1900,10 +1900,11 @@ function cargarCompartidos() {
   const anio = parseInt(document.getElementById("comp-anio").value);
   const CATS = [...new Set([...categGasto, ...categIngreso])].sort();
 
-  // Filtrar transacciones del mes/año seleccionado — gastos para compPorCat y reembolsos
+  // Filtrar transacciones del mes/año seleccionado — todos los gastos (ambos usuarios)
+  // Los reembolsos se filtran por usuario más abajo; compartidos necesita ver ambos lados
   const datos = allTransac.filter(t => {
     const d = new Date(t.fecha + "T12:00:00");
-    return (d.getMonth() + 1) === mes && d.getFullYear() === anio && t.tipo === "Gasto" && t.usuario === USUARIO;
+    return (d.getMonth() + 1) === mes && d.getFullYear() === anio && t.tipo === "Gasto";
   });
   // Ingresos del mes — los compartidos reducen lo que se debe
   const datosIngresos = allTransac.filter(t => {
@@ -1953,7 +1954,7 @@ function cargarCompartidos() {
   const reembPorCatARS = {}, reembPorCatUSD = {};
   CATS.forEach(cat => { reembPorCatARS[cat] = 0; reembPorCatUSD[cat] = 0; });
 
-  datos.filter(t => (t.responsabilidad || "Mío") === "De Daniel").forEach(t => {
+  datos.filter(t => (t.responsabilidad || "Mío") === "De Daniel" && t.usuario === USUARIO).forEach(t => {
     const cat    = t.categoria;
     const moneda = (t.moneda || "ARS").toUpperCase();
     if (!reembPorCatARS[cat]) reembPorCatARS[cat] = 0;
