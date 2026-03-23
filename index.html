@@ -1398,10 +1398,10 @@ async function cargarResumenMes() {
   const mes  = document.getElementById("sel-mes-resumen").value;
   const anio = document.getElementById("sel-anio-resumen").value;
 
-  // Filtrar local
+  // Filtrar local — solo transacciones del usuario activo
   const datos = allTransac.filter(t => {
     const d = new Date(t.fecha + "T12:00:00");
-    return (d.getMonth() + 1) === parseInt(mes) && d.getFullYear() === parseInt(anio);
+    return (d.getMonth() + 1) === parseInt(mes) && d.getFullYear() === parseInt(anio) && t.usuario === USUARIO;
   });
 
   // Todos los montos en BRUTO — montoEfectivoGasto se usa SOLO en la pestaña Compartidos.
