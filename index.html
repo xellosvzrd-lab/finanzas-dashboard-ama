@@ -1308,7 +1308,7 @@ async function iniciarApp() {
 // ─── CATEGORÍAS Y FUENTES ─────────────────────────────────────
 async function cargarCategorias() {
   try {
-    const r = await fetch(`${API_URL}?action=getCategorias`);
+    const r = await fetch(`${API_URL}?action=getCategorias&usuario=${encodeURIComponent(USUARIO)}`);
     const j = await r.json();
     if (j.ok) {
       categGasto           = j.gasto;
