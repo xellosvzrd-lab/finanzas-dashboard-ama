@@ -826,7 +826,7 @@
             <option value="">Todas</option>
             <option value="Mío">🙋 Mío</option>
             <option value="Compartido">👫 Compartido</option>
-            <option value="De Ama">💳 De Ama</option>
+            <option value="De Daniel">💳 De Daniel</option>
           </select>
           <input type="text" id="fil-buscar" placeholder="Buscar..." oninput="filtrarTabla()">
         </div>
@@ -900,7 +900,7 @@
               <select id="f-responsabilidad">
                 <option value="Mío">🙋 Mío</option>
                 <option value="Compartido">👫 Compartido</option>
-                <option value="De Ama">💳 De Ama (ella me reintegra)</option>
+                <option value="De Daniel">💳 De Daniel (él me reintegra)</option>
               </select>
             </div>
           </div>
@@ -931,7 +931,7 @@
       <!-- ── PÁGINA COMPARTIDOS ────────────────────────── -->
       <div id="page-compartidos" class="page">
         <div class="page-header">
-          <h1>👫 Compartidos con Ama</h1>
+          <h1>👫 Compartidos con Daniel</h1>
         </div>
 
         <!-- Selector de mes -->
@@ -979,7 +979,7 @@
           <!-- Tabla derecha: Reembolsos -->
           <div class="chart-card" style="padding:0;overflow:hidden">
             <div style="padding:1.1rem 1.4rem .6rem; border-bottom:1px solid var(--border)">
-              <h3 style="font-size:1rem;font-weight:700;color:var(--accent2)">💳 Reembolsos de Ama <span style="font-size:.78rem;color:var(--text-muted);font-weight:400">(gastos 100% de ella)</span></h3>
+              <h3 style="font-size:1rem;font-weight:700;color:var(--accent2)">💳 Reembolsos de Daniel <span style="font-size:.78rem;color:var(--text-muted);font-weight:400">(gastos 100% de él)</span></h3>
             </div>
             <div class="table-wrap">
               <table>
@@ -998,7 +998,7 @@
               </table>
             </div>
             <div style="padding:.6rem 1.4rem .5rem;font-size:.73rem;color:var(--text-muted)">
-              * Monto completo — son gastos de Ama que vos financiaste.
+              * Monto completo — son gastos de Daniel que vos financiaste.
             </div>
           </div>
 
@@ -1033,7 +1033,7 @@
           <div class="kpi-card">
             <div class="kpi-label">💸 Gastado efectivo</div>
             <div class="kpi-value expense" id="pres-kpi-gastado">$0</div>
-            <div class="kpi-sub">50% compartidos · sin "De Ama"</div>
+            <div class="kpi-sub">50% compartidos · sin "De Daniel"</div>
           </div>
           <div class="kpi-card">
             <div class="kpi-label">✅ Disponible</div>
@@ -1061,7 +1061,7 @@
         </div>
 
         <p class="pres-note">
-          💡 Los gastos <strong>Compartidos</strong> cuentan al 50% · Los gastos <strong>De Ama</strong> no se cuentan · Solo se consideran tus transacciones.
+          💡 Los gastos <strong>Compartidos</strong> cuentan al 50% · Los gastos <strong>De Daniel</strong> no se cuentan · Solo se consideran tus transacciones.
         </p>
         <div id="pres-msg" style="margin-top:.5rem;font-size:.85rem;min-height:1.2em"></div>
       </div><!-- /page-presupuesto -->
@@ -1135,7 +1135,7 @@
               <tr><td>3</td><td>Categoría</td><td>Cualquier categoría existente</td><td>✅</td></tr>
               <tr><td>4</td><td>Monto</td><td>Número positivo (ej: <code>1500.50</code>)</td><td>✅</td></tr>
               <tr><td>5</td><td>Descripción</td><td>Texto libre</td><td>—</td></tr>
-              <tr><td>6</td><td>Responsabilidad</td><td><code>Mío</code> / <code>Compartido</code> / <code>De Ama</code></td><td>— (default: Mío)</td></tr>
+              <tr><td>6</td><td>Responsabilidad</td><td><code>Mío</code> / <code>Compartido</code> / <code>De Daniel</code></td><td>— (default: Mío)</td></tr>
               <tr><td>7</td><td>Fuente</td><td>Galicia, HSBC, etc.</td><td>—</td></tr>
               <tr><td>8</td><td>Moneda</td><td><code>ARS</code> (pesos) o <code>USD</code> (dólares)</td><td>— (default: ARS)</td></tr>
             </tbody>
@@ -1216,7 +1216,7 @@ const CATS_TRANSFERENCIA = ["Internas"];
 let categGasto           = [];
 let categIngreso         = [];
 let categFuentes         = [];
-let categResponsabilidad = ["Mío","Compartido","De Ama"];
+let categResponsabilidad = ["Mío","Compartido","De Daniel"];
 
 let chartCat    = null;
 let chartDonut  = null;
@@ -1233,8 +1233,8 @@ const PALETTE = [
 // ─── INICIALIZACIÓN ───────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", () => {
   // Leer config guardada
-  const savedUrl  = localStorage.getItem("fp_api_url");
-  const savedUser = localStorage.getItem("fp_usuario");
+  const savedUrl  = localStorage.getItem("fp_ama_api_url");
+  const savedUser = localStorage.getItem("fp_ama_usuario");
   if (savedUrl) {
     API_URL  = savedUrl;
     USUARIO  = savedUser || "Ama";
@@ -1268,8 +1268,8 @@ function guardarConfig() {
   const url  = document.getElementById("api-url").value.trim();
   const user = document.getElementById("usuario-setup").value.trim() || "Ama";
   if (!url) { alert("Ingresá la URL del Web App primero."); return; }
-  localStorage.setItem("fp_api_url",  url);
-  localStorage.setItem("fp_usuario",  user);
+  localStorage.setItem("fp_ama_api_url",  url);
+  localStorage.setItem("fp_ama_usuario",  user);
   API_URL  = url;
   USUARIO  = user;
   iniciarApp();
@@ -1320,7 +1320,7 @@ async function cargarCategorias() {
       const selResp = document.getElementById("f-responsabilidad");
       if (selResp) {
         selResp.innerHTML = categResponsabilidad.map(rv =>
-          `<option value="${rv}">${rv === "Mío" ? "🙋 Mío" : rv === "Compartido" ? "👫 Compartido" : "💳 De Ama (ella me reintegra)"}</option>`
+          `<option value="${rv}">${rv === "Mío" ? "🙋 Mío" : rv === "Compartido" ? "👫 Compartido" : "💳 De Daniel (él me reintegra)"}</option>`
         ).join("");
       }
       // Filtro de responsabilidad
@@ -1348,7 +1348,7 @@ async function cargarCategorias() {
 // ─── TRANSACCIONES ────────────────────────────────────────────
 async function cargarTodasTransacciones() {
   try {
-    const r = await fetch(`${API_URL}?action=getTransacciones&usuario=${encodeURIComponent(USUARIO)}`);
+    const r = await fetch(`${API_URL}?action=getTransacciones`);
     const j = await r.json();
     if (j.ok) allTransac = j.data;
   } catch(e) { console.warn("Error cargando transacciones:", e); }
@@ -1443,13 +1443,13 @@ async function cargarResumenMes() {
 
   // KPI "Ama te debe" — acumulado total (no filtrado por mes)
   const amaDebeTotalMes = allTransac
-    .filter(t => t.tipo === "Gasto" && (t.responsabilidad || "Mío") === "De Ama")
+    .filter(t => t.tipo === "Gasto" && (t.responsabilidad || "Mío") === "De Daniel")
     .reduce((s,t) => s + Math.abs(Number(t.monto)), 0);
   const amaKpi = document.getElementById("kpi-ama-debe");
   if (amaKpi) {
     amaKpi.textContent = fmt(amaDebeTotalMes);
     document.getElementById("kpi-ama-debe-sub").textContent =
-      amaDebeTotalMes > 0 ? `${allTransac.filter(t=>t.tipo==="Gasto"&&(t.responsabilidad||"Mío")==="De Ama").length} gastos pendientes de reintegro` : "Sin gastos pendientes ✅";
+      amaDebeTotalMes > 0 ? `${allTransac.filter(t=>t.tipo==="Gasto"&&(t.responsabilidad||"Mío")==="De Daniel").length} gastos pendientes de reintegro` : "Sin gastos pendientes ✅";
   }
 
   // Categorías para charts — gasto NETO por categoría usando montos BRUTOS
@@ -1555,8 +1555,8 @@ function renderTopGastos(sortedCatsARS, sortedCatsUSD, datos) {
         const resp    = t.responsabilidad || "Mío";
         const respTag = resp === "Compartido"
           ? `<span style="color:#a78bfa;font-size:.75rem;">Compartido</span>`
-          : resp === "De Ama"
-          ? `<span style="color:#f59e0b;font-size:.75rem;">De Ama</span>`
+          : resp === "De Daniel"
+          ? `<span style="color:#f59e0b;font-size:.75rem;">De Daniel</span>`
           : "";
         const efeColor = efe >= 0 ? "var(--red)" : "var(--green)";
         const efeLabel = efe >= 0 ? fmtVal(bruto) : "−" + fmtVal(bruto);
@@ -1613,7 +1613,7 @@ function renderTopGastos(sortedCatsARS, sortedCatsUSD, datos) {
 function cargarEvolucion() {
   // Agrupar allTransac por mes
   const map = {};
-  allTransac.filter(t => !esTransferencia(t)).forEach(t => {
+  allTransac.filter(t => !esTransferencia(t) && t.usuario === USUARIO).forEach(t => {
     const d = new Date(t.fecha + "T12:00:00");
     const k = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
     if (!map[k]) map[k] = { ingresos: 0, gastos: 0 };
@@ -1716,7 +1716,8 @@ function filtrarTabla() {
     const okBus    = !buscar || (t.descripcion||"").toLowerCase().includes(buscar)
                              || t.categoria.toLowerCase().includes(buscar)
                              || (t.fuente||"").toLowerCase().includes(buscar);
-    return okMes && okAnio && okTipo && okCat && okFuente && okResp && okBus;
+    const okUser  = t.usuario === USUARIO;
+    return okMes && okAnio && okTipo && okCat && okFuente && okResp && okBus && okUser;
   });
 
   // Ordenar más recientes primero
@@ -1728,8 +1729,8 @@ function filtrarTabla() {
     return;
   }
 
-  const respEmoji = { "Mío": "🙋", "Compartido": "👫", "De Ama": "💳" };
-  const respColor = { "Mío": "var(--accent)", "Compartido": "var(--yellow)", "De Ama": "var(--accent2)" };
+  const respEmoji = { "Mío": "🙋", "Compartido": "👫", "De Daniel": "💳" };
+  const respColor = { "Mío": "var(--accent)", "Compartido": "var(--yellow)", "De Daniel": "var(--accent2)" };
 
   tbody.innerHTML = datos.map(t => {
     const r = t.responsabilidad || "Mío";
@@ -1902,7 +1903,7 @@ function cargarCompartidos() {
   // Filtrar transacciones del mes/año seleccionado — gastos para compPorCat y reembolsos
   const datos = allTransac.filter(t => {
     const d = new Date(t.fecha + "T12:00:00");
-    return (d.getMonth() + 1) === mes && d.getFullYear() === anio && t.tipo === "Gasto";
+    return (d.getMonth() + 1) === mes && d.getFullYear() === anio && t.tipo === "Gasto" && t.usuario === USUARIO;
   });
   // Ingresos del mes — los compartidos reducen lo que se debe
   const datosIngresos = allTransac.filter(t => {
@@ -1947,11 +1948,11 @@ function cargarCompartidos() {
   });
 
   // ── REEMBOLSOS ───────────────────────────────────────────────
-  // Gastos marcados "De Ama" → monto completo
+  // Gastos marcados "De Daniel" → monto completo
   const reembPorCat = {};
   CATS.forEach(cat => { reembPorCat[cat] = { daniel: 0, ama: 0 }; });
 
-  datos.filter(t => (t.responsabilidad || "Mío") === "De Ama").forEach(t => {
+  datos.filter(t => (t.responsabilidad || "Mío") === "De Daniel").forEach(t => {
     const cat = t.categoria;
     if (!reembPorCat[cat]) reembPorCat[cat] = { daniel: 0, ama: 0 };
     reembPorCat[cat].daniel += Math.abs(Number(t.monto));
@@ -2086,7 +2087,7 @@ function cargarCompartidos() {
   <tr style="font-size:.73rem;color:var(--text-muted)">
     <td colspan="2">Pagado Daniel</td>
     <td>Pagado Ama</td>
-    <td style="text-align:right">Ama debe reintegrar</td>
+    <td style="text-align:right">Daniel debe reintegrar</td>
   </tr>`;
 
   // ── BALANCE FINAL ────────────────────────────────────────────
@@ -2254,7 +2255,7 @@ function montoEfectivoGasto(t) {
   if (t.tipo !== "Gasto") return 0;
   const resp = t.responsabilidad || "Mío";
   const m = Math.abs(Number(t.monto));
-  if (resp === "De Ama")    return 0;
+  if (resp === "De Daniel")    return 0;
   if (resp === "Compartido") return m / 2;
   return m; // "Mío"
 }
@@ -2553,7 +2554,7 @@ function parsearImport() {
 
     // Normalizar responsabilidad
     const respNorm = resp || "Mío";
-    const respVal  = ["Mío","Compartido","De Ama"].includes(respNorm) ? respNorm : "Mío";
+    const respVal  = ["Mío","Compartido","De Daniel"].includes(respNorm) ? respNorm : "Mío";
 
     // Normalizar moneda
     const monedaUp = monedaRaw.toUpperCase().trim();
