@@ -251,6 +251,43 @@
   .table-filters select:focus, .table-filters input:focus {
     outline: none; border-color: var(--accent);
   }
+  .multi-select-wrap { position: relative; }
+  .multi-select-btn {
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--text); padding: .42rem .85rem; border-radius: 8px;
+    font-size: .84rem; font-family: inherit; cursor: pointer;
+    display: flex; align-items: center; gap: .4rem; white-space: nowrap;
+    transition: border-color .15s; user-select: none;
+  }
+  .multi-select-btn:hover { border-color: var(--accent); }
+  .multi-select-btn.active { border-color: var(--accent); color: var(--accent); }
+  .multi-select-panel {
+    position: absolute; top: calc(100% + 4px); left: 0; z-index: 100;
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: .4rem 0; min-width: 200px; max-height: 260px;
+    overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  }
+  .multi-select-all {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .35rem .8rem; font-size: .82rem; color: var(--text-muted);
+    border-bottom: 1px solid var(--border); cursor: pointer; font-weight: 600;
+  }
+  .multi-select-option {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .3rem .8rem; font-size: .83rem; cursor: pointer;
+    transition: background .1s;
+  }
+  .multi-select-option:hover { background: var(--bg2); }
+  .multi-select-option input, .multi-select-all input { cursor: pointer; accent-color: var(--accent); }
+  .tabla-subtotal {
+    display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;
+    padding: .55rem 1rem; background: var(--bg2);
+    border-bottom: 1px solid var(--border); font-size: .82rem;
+    color: var(--text-muted);
+  }
+  .tabla-subtotal strong { color: var(--text); }
+  .tabla-subtotal .sub-neto-pos { color: var(--green) !important; }
+  .tabla-subtotal .sub-neto-neg { color: var(--red) !important; }
 
   .table-wrap { overflow-x: auto; border-radius: var(--radius); }
   table { width: 100%; border-collapse: collapse; font-size: .86rem; }
@@ -816,9 +853,17 @@
             <option value="Ingreso">Ingresos</option>
             <option value="Gasto">Gastos</option>
           </select>
-          <select id="fil-cat" onchange="filtrarTabla()">
-            <option value="">Todas las categorías</option>
-          </select>
+          <div class="multi-select-wrap" id="fil-cat-wrap">
+            <div class="multi-select-btn" id="fil-cat-btn" onclick="toggleMultiSelect()">
+              <span id="fil-cat-label">Todas las categorías</span><span>▾</span>
+            </div>
+            <div class="multi-select-panel" id="fil-cat-panel" style="display:none">
+              <label class="multi-select-all">
+                <input type="checkbox" id="fil-cat-all" checked onchange="toggleTodasCats(this)"> Todas
+              </label>
+              <div id="fil-cat-options"></div>
+            </div>
+          </div>
           <select id="fil-fuente" onchange="filtrarTabla()">
             <option value="">Todas las fuentes</option>
           </select>
@@ -831,6 +876,12 @@
           <input type="text" id="fil-buscar" placeholder="Buscar..." oninput="filtrarTabla()">
         </div>
         <div class="chart-card" style="padding:0; overflow:hidden">
+          <div class="tabla-subtotal" id="tabla-subtotal">
+            <span id="sub-count">—</span>
+            <span>Ingresos: <strong id="sub-ingresos">—</strong></span>
+            <span>Gastos: <strong id="sub-gastos">—</strong></span>
+            <span>Neto: <strong id="sub-neto">—</strong></span>
+          </div>
           <div class="table-wrap">
             <table>
               <thead>
@@ -1748,33 +1799,105 @@ function cargarEvolucion() {
   });
 }
 
+// ─── MULTI-SELECT CATEGORÍAS ─────────────────────────────────
+function toggleMultiSelect() {
+  const panel = document.getElementById("fil-cat-panel");
+  const isOpen = panel.style.display !== "none";
+  panel.style.display = isOpen ? "none" : "block";
+  document.getElementById("fil-cat-btn").classList.toggle("active", !isOpen);
+}
+function toggleTodasCats(checkbox) {
+  document.querySelectorAll("#fil-cat-options input").forEach(i => i.checked = checkbox.checked);
+  actualizarLabelCat();
+  filtrarTabla();
+}
+function onCatChange() {
+  const all = [...document.querySelectorAll("#fil-cat-options input")];
+  const checked = all.filter(i => i.checked);
+  const allBox = document.getElementById("fil-cat-all");
+  allBox.checked = checked.length === all.length;
+  allBox.indeterminate = checked.length > 0 && checked.length < all.length;
+  actualizarLabelCat();
+  filtrarTabla();
+}
+function actualizarLabelCat() {
+  const all = [...document.querySelectorAll("#fil-cat-options input")];
+  const checked = all.filter(i => i.checked);
+  const label = document.getElementById("fil-cat-label");
+  const btn   = document.getElementById("fil-cat-btn");
+  if (checked.length === all.length || checked.length === 0) {
+    label.textContent = "Todas las categorías";
+    btn.classList.remove("active");
+  } else if (checked.length === 1) {
+    label.textContent = checked[0].value;
+    btn.classList.add("active");
+  } else {
+    label.textContent = `${checked.length} categorías`;
+    btn.classList.add("active");
+  }
+}
+function inicializarCatOptions() {
+  const el = document.getElementById("fil-cat-options");
+  if (el.children.length > 0) return;
+  const cats = [...new Set(allTransac.filter(t => t.usuario === USUARIO).map(t => t.categoria))].sort();
+  el.innerHTML = cats.map(c =>
+    `<label class="multi-select-option"><input type="checkbox" value="${c}" checked onchange="onCatChange()"> ${c}</label>`
+  ).join("");
+}
+document.addEventListener("click", e => {
+  if (!e.target.closest("#fil-cat-wrap")) {
+    const panel = document.getElementById("fil-cat-panel");
+    if (panel) { panel.style.display = "none"; document.getElementById("fil-cat-btn").classList.remove("active"); }
+  }
+});
+
 // ─── TABLA TRANSACCIONES ─────────────────────────────────────
 function filtrarTabla() {
-  const mes     = document.getElementById("fil-mes").value;
-  const anio    = document.getElementById("fil-anio").value;
-  const tipo    = document.getElementById("fil-tipo").value;
-  const cat     = document.getElementById("fil-cat").value;
-  const fuente  = document.getElementById("fil-fuente")?.value || "";
-  const resp    = document.getElementById("fil-resp")?.value || "";
-  const buscar  = document.getElementById("fil-buscar").value.toLowerCase();
+  inicializarCatOptions();
+
+  const mes    = document.getElementById("fil-mes").value;
+  const anio   = document.getElementById("fil-anio").value;
+  const tipo   = document.getElementById("fil-tipo").value;
+  const fuente = document.getElementById("fil-fuente")?.value || "";
+  const resp   = document.getElementById("fil-resp")?.value || "";
+  const buscar = document.getElementById("fil-buscar").value.toLowerCase();
+  const catsSelec = new Set(
+    [...document.querySelectorAll("#fil-cat-options input:checked")].map(i => i.value)
+  );
+  const todasCats = catsSelec.size === 0 ||
+    catsSelec.size === document.querySelectorAll("#fil-cat-options input").length;
 
   let datos = allTransac.filter(t => {
     const d = new Date(t.fecha + "T12:00:00");
+    const okUser   = t.usuario === USUARIO;
     const okMes    = !mes    || (d.getMonth()+1) === parseInt(mes);
     const okAnio   = !anio   || d.getFullYear()  === parseInt(anio);
     const okTipo   = !tipo   || t.tipo === tipo;
-    const okCat    = !cat    || t.categoria === cat;
+    const okCat    = todasCats || catsSelec.has(t.categoria);
     const okFuente = !fuente || (t.fuente || "") === fuente;
     const okResp   = !resp   || (t.responsabilidad || "Mío") === resp;
     const okBus    = !buscar || (t.descripcion||"").toLowerCase().includes(buscar)
                              || t.categoria.toLowerCase().includes(buscar)
                              || (t.fuente||"").toLowerCase().includes(buscar);
-    const okUser  = t.usuario === USUARIO;
-    return okMes && okAnio && okTipo && okCat && okFuente && okResp && okBus && okUser;
+    return okUser && okMes && okAnio && okTipo && okCat && okFuente && okResp && okBus;
   });
 
-  // Ordenar más recientes primero
   datos.sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+
+  // ── Subtotales ──
+  const subIngARS = datos.filter(t=>t.tipo==="Ingreso"&&(t.moneda||"ARS")==="ARS").reduce((s,t)=>s+Math.abs(Number(t.monto)),0);
+  const subGasARS = datos.filter(t=>t.tipo==="Gasto"  &&(t.moneda||"ARS")==="ARS").reduce((s,t)=>s+Math.abs(Number(t.monto)),0);
+  const subIngUSD = datos.filter(t=>t.tipo==="Ingreso"&&(t.moneda||"ARS")==="USD").reduce((s,t)=>s+Math.abs(Number(t.monto)),0);
+  const subGasUSD = datos.filter(t=>t.tipo==="Gasto"  &&(t.moneda||"ARS")==="USD").reduce((s,t)=>s+Math.abs(Number(t.monto)),0);
+  const netoARS = subIngARS - subGasARS;
+  const netoUSD = subIngUSD - subGasUSD;
+  const hayUSDsub = subIngUSD > 0 || subGasUSD > 0;
+  document.getElementById("sub-count").textContent = `${datos.length} transacción${datos.length!==1?"es":""}`;
+  document.getElementById("sub-ingresos").textContent = fmt(subIngARS) + (subIngUSD>0?` + ${fmtMoneda(subIngUSD,"USD")}`:"");
+  document.getElementById("sub-gastos").textContent   = fmt(subGasARS) + (subGasUSD>0?` + ${fmtMoneda(subGasUSD,"USD")}`:"");
+  const netoEl = document.getElementById("sub-neto");
+  netoEl.textContent = fmt(Math.abs(netoARS)) + (hayUSDsub?` + ${fmtMoneda(Math.abs(netoUSD),"USD")}`:"");
+  netoEl.className = netoARS >= 0 ? "sub-neto-pos" : "sub-neto-neg";
 
   const tbody = document.getElementById("tabla-body");
   if (!datos.length) {
@@ -1804,18 +1927,6 @@ function filtrarTabla() {
       <td><button class="delete-btn" onclick="eliminarTransaccion('${t.id}')" title="Eliminar">🗑️</button></td>
     </tr>`
   }).join("");
-
-  // Poblar filtro categorías
-  const cats = [...new Set(allTransac.map(t => t.categoria))].sort();
-  const filCat = document.getElementById("fil-cat");
-  const currentVal = filCat.value;
-  filCat.innerHTML = '<option value="">Todas las categorías</option>';
-  cats.forEach(c => {
-    const o = document.createElement("option");
-    o.value = c; o.textContent = c;
-    if (c === currentVal) o.selected = true;
-    filCat.appendChild(o);
-  });
 }
 
 // ─── ELIMINAR ─────────────────────────────────────────────────
