@@ -1404,16 +1404,54 @@ async function cargarResumenMes() {
     return (d.getMonth() + 1) === parseInt(mes) && d.getFullYear() === parseInt(anio) && t.usuario === USUARIO;
   });
 
-  // Todos los montos en BRUTO — montoEfectivoGasto se usa SOLO en la pestaña Compartidos.
-  // Cuando Ama reembolsa su parte, se registra como Ingreso → ya baja el balance naturalmente.
-  // Se excluyen "Internas" (transferencias entre cuentas propias, siempre neto 0).
-  const ingresosARS = datos.filter(t => t.tipo === "Ingreso" && !esTransferencia(t) && (t.moneda || "ARS") === "ARS").reduce((s,t) => s + Math.abs(Number(t.monto)), 0);
-  const ingresosUSD = datos.filter(t => t.tipo === "Ingreso" && !esTransferencia(t) && (t.moneda || "ARS") === "USD").reduce((s,t) => s + Math.abs(Number(t.monto)), 0);
-  const gastosARS   = datos.filter(t => t.tipo === "Gasto"   && !esTransferencia(t) && (t.moneda || "ARS") === "ARS").reduce((s,t) => s + Math.abs(Number(t.monto)), 0);
-  const gastosUSD   = datos.filter(t => t.tipo === "Gasto"   && !esTransferencia(t) && (t.moneda || "ARS") === "USD").reduce((s,t) => s + Math.abs(Number(t.monto)), 0);
+  // ── INGRESOS KPI — lógica específica de Ama ──────────────────
+  // ARS: Sueldo + Otros Ingresos + Intereses + neto Cambio ARS
+  // USD: Sueldo USD + neto Cambio USD
+  // "Cambio" compensa la venta/compra de dólares: no es gasto real ni ingreso autónomo.
+  // Se excluyen Internas (transferencias entre cuentas propias).
+
+  const CATS_INGRESO_ARS = ["Sueldo", "Otros Ingresos", "Intereses"];
+  const CATS_INGRESO_USD = ["Sueldo USD"];
+
+  // Ingresos base (sin Cambio)
+  const ingresosBaseARS = datos.filter(t => t.tipo === "Ingreso" && !esTransferencia(t)
+    && CATS_INGRESO_ARS.includes(t.categoria) && (t.moneda || "ARS") === "ARS")
+    .reduce((s,t) => s + Math.abs(Number(t.monto)), 0);
+  const ingresosBaseUSD = datos.filter(t => t.tipo === "Ingreso" && !esTransferencia(t)
+    && CATS_INGRESO_USD.includes(t.categoria) && (t.moneda || "ARS") === "USD")
+    .reduce((s,t) => s + Math.abs(Number(t.monto)), 0);
+
+  // Neto Cambio: Ingreso Cambio - Gasto Cambio, separado por moneda
+  // Vender USD → Gasto USD "Cambio" + Ingreso ARS "Cambio" → netCambioARS > 0, netCambioUSD < 0
+  // Comprar USD → Gasto ARS "Cambio" + Ingreso USD "Cambio" → netCambioARS < 0, netCambioUSD > 0
+  const netCambioARS = datos.filter(t => t.categoria === "Cambio" && !esTransferencia(t)
+    && (t.moneda || "ARS") === "ARS")
+    .reduce((s,t) => s + (t.tipo === "Ingreso" ? 1 : -1) * Math.abs(Number(t.monto)), 0);
+  const netCambioUSD = datos.filter(t => t.categoria === "Cambio" && !esTransferencia(t)
+    && (t.moneda || "ARS") === "USD")
+    .reduce((s,t) => s + (t.tipo === "Ingreso" ? 1 : -1) * Math.abs(Number(t.monto)), 0);
+
+  const ingresosARS = ingresosBaseARS + netCambioARS;
+  const ingresosUSD = ingresosBaseUSD + netCambioUSD;
+
+  // ── GASTOS KPI — neto por categoría (excluye Cambio) ─────────
+  // Cambio ya está contabilizado en ingresos; excluirlo evita doble conteo.
+  // Reintegros de la misma categoría reducen el gasto (ej: reintegro Mercado reduce gasto Mercado).
+  const catMapARS = {}, catMapUSD = {};
+  datos.filter(t => !esTransferencia(t) && t.categoria !== "Cambio").forEach(t => {
+    const m   = Math.abs(Number(t.monto));
+    const mon = (t.moneda || "ARS").toUpperCase();
+    const map = mon === "USD" ? catMapUSD : catMapARS;
+    if (t.tipo === "Gasto")        map[t.categoria] = (map[t.categoria] || 0) + m;
+    else if (t.tipo === "Ingreso") map[t.categoria] = (map[t.categoria] || 0) - m;
+  });
+  const sortedCatsARS = Object.entries(catMapARS).filter(([,v]) => v > 0).sort((a,b) => b[1] - a[1]);
+  const sortedCatsUSD = Object.entries(catMapUSD).filter(([,v]) => v > 0).sort((a,b) => b[1] - a[1]);
+  const gastosNetARS  = sortedCatsARS.reduce((s,[,v]) => s + v, 0);
+  const gastosNetUSD  = sortedCatsUSD.reduce((s,[,v]) => s + v, 0);
 
   const ingresos = ingresosARS;
-  const gastos   = gastosARS;
+  const gastos   = gastosNetARS;
   const balance  = ingresos - gastos;
   const ahorro   = ingresos > 0 ? ((balance / ingresos) * 100).toFixed(1) : 0;
 
@@ -1426,22 +1464,27 @@ async function cargarResumenMes() {
 
   document.getElementById("kpi-ahorro").textContent = ahorro + "%";
 
-  const ingSubParts = [`${datos.filter(t=>t.tipo==="Ingreso").length} transacciones`];
-  if (ingresosUSD > 0) ingSubParts.push(`+ ${fmtMoneda(ingresosUSD,"USD")} USD`);
+  const ingTxCount = datos.filter(t => t.tipo === "Ingreso" && !esTransferencia(t)
+    && (CATS_INGRESO_ARS.includes(t.categoria) || CATS_INGRESO_USD.includes(t.categoria))).length;
+  const ingSubParts = [`${ingTxCount} transacciones`];
+  if (netCambioARS !== 0) ingSubParts.push(`Cambio: ${netCambioARS > 0 ? "+" : ""}${fmt(netCambioARS)}`);
+  if (ingresosUSD !== 0)  ingSubParts.push(`USD: ${fmtMoneda(Math.abs(ingresosUSD),"USD")} ${ingresosUSD >= 0 ? "✅" : "⚠️"}`);
   document.getElementById("kpi-ingresos-sub").textContent = ingSubParts.join(" · ");
 
-  const gasSubParts = [`${datos.filter(t=>t.tipo==="Gasto").length} transacciones`];
-  if (gastosUSD > 0) gasSubParts.push(`+ ${fmtMoneda(gastosUSD,"USD")} USD`);
+  const gasTxCount = datos.filter(t => t.tipo === "Gasto" && !esTransferencia(t)
+    && t.categoria !== "Cambio").length;
+  const gasSubParts = [`${gasTxCount} tx · neto de reintegros`];
+  if (gastosNetUSD > 0) gasSubParts.push(`+ ${fmtMoneda(gastosNetUSD,"USD")} USD`);
   document.getElementById("kpi-gastos-sub").textContent = gasSubParts.join(" · ");
 
   const balSubParts = [balance >= 0 ? "Superávit 🎉" : "Déficit ⚠️"];
-  if (ingresosUSD > 0 || gastosUSD > 0) {
-    const balUSD = ingresosUSD - gastosUSD;
+  if (ingresosUSD !== 0 || gastosNetUSD > 0) {
+    const balUSD = ingresosUSD - gastosNetUSD;
     balSubParts.push(`Balance USD: ${fmtMoneda(Math.abs(balUSD),"USD")} ${balUSD >= 0 ? "✅" : "⚠️"}`);
   }
   document.getElementById("kpi-balance-sub").textContent = balSubParts.join(" · ");
 
-  // KPI "Ama te debe" — acumulado total (no filtrado por mes)
+  // KPI "Daniel te debe" — acumulado total (no filtrado por mes)
   const amaDebeTotalMes = allTransac
     .filter(t => t.tipo === "Gasto" && (t.responsabilidad || "Mío") === "De Daniel")
     .reduce((s,t) => s + Math.abs(Number(t.monto)), 0);
@@ -1451,20 +1494,6 @@ async function cargarResumenMes() {
     document.getElementById("kpi-ama-debe-sub").textContent =
       amaDebeTotalMes > 0 ? `${allTransac.filter(t=>t.tipo==="Gasto"&&(t.responsabilidad||"Mío")==="De Daniel").length} gastos pendientes de reintegro` : "Sin gastos pendientes ✅";
   }
-
-  // Categorías para charts — gasto NETO por categoría usando montos BRUTOS
-  // (gastos brutos − ingresos brutos de la misma categoría).
-  // Catmaps separados por moneda — montos BRUTOS, gastos − ingresos de la misma categoría.
-  const catMapARS = {}, catMapUSD = {};
-  datos.filter(t => !esTransferencia(t)).forEach(t => {
-    const m   = Math.abs(Number(t.monto));
-    const mon = (t.moneda || "ARS").toUpperCase();
-    const map = mon === "USD" ? catMapUSD : catMapARS;
-    if (t.tipo === "Gasto")   map[t.categoria] = (map[t.categoria] || 0) + m;
-    else if (t.tipo === "Ingreso") map[t.categoria] = (map[t.categoria] || 0) - m;
-  });
-  const sortedCatsARS = Object.entries(catMapARS).filter(([,v]) => v > 0).sort((a,b) => b[1] - a[1]);
-  const sortedCatsUSD = Object.entries(catMapUSD).filter(([,v]) => v > 0).sort((a,b) => b[1] - a[1]);
 
   renderCatChart(sortedCatsARS);          // gráfico de barras muestra ARS
   renderDonutChart(ingresos, gastos);
