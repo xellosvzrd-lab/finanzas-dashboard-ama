@@ -1640,14 +1640,38 @@ function renderTopGastos(sortedCatsARS, sortedCatsUSD, datos) {
 
 // ─── EVOLUCIÓN ────────────────────────────────────────────────
 function cargarEvolucion() {
-  // Agrupar allTransac por mes
-  const map = {};
+  // Misma lógica que cargarResumenMes de Ama:
+  // Ingresos ARS = Sueldo + Otros Ingresos + Intereses + neto Cambio ARS
+  // Gastos ARS   = neto por categoría (gastos − reintegros), excluyendo Cambio
+  const CATS_INGRESO_ARS = ["Sueldo", "Otros Ingresos", "Intereses"];
+
+  // 1. Agrupar transacciones por mes
+  const monthTxs = {};
   allTransac.filter(t => !esTransferencia(t) && t.usuario === USUARIO).forEach(t => {
     const d = new Date(t.fecha + "T12:00:00");
     const k = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
-    if (!map[k]) map[k] = { ingresos: 0, gastos: 0 };
-    if (t.tipo === "Ingreso") map[k].ingresos += Math.abs(Number(t.monto));
-    else map[k].gastos += Math.abs(Number(t.monto));
+    if (!monthTxs[k]) monthTxs[k] = [];
+    monthTxs[k].push(t);
+  });
+
+  // 2. Calcular ingresos y gastos netos por mes (solo ARS para el gráfico principal)
+  const map = {};
+  Object.entries(monthTxs).forEach(([k, txs]) => {
+    const ingresosBase = txs
+      .filter(t => t.tipo === "Ingreso" && CATS_INGRESO_ARS.includes(t.categoria) && (t.moneda||"ARS") === "ARS")
+      .reduce((s,t) => s + Math.abs(Number(t.monto)), 0);
+    const netCambioARS = txs
+      .filter(t => t.categoria === "Cambio" && (t.moneda||"ARS") === "ARS")
+      .reduce((s,t) => s + (t.tipo === "Ingreso" ? 1 : -1) * Math.abs(Number(t.monto)), 0);
+    const ingresos = ingresosBase + netCambioARS;
+    const catMap = {};
+    txs.filter(t => (t.moneda||"ARS") === "ARS" && t.categoria !== "Cambio").forEach(t => {
+      const m = Math.abs(Number(t.monto));
+      if (t.tipo === "Gasto")        catMap[t.categoria] = (catMap[t.categoria]||0) + m;
+      else if (t.tipo === "Ingreso") catMap[t.categoria] = (catMap[t.categoria]||0) - m;
+    });
+    const gastos = Object.values(catMap).filter(v => v > 0).reduce((s,v) => s + v, 0);
+    map[k] = { ingresos, gastos };
   });
 
   // Últimos 12 meses
