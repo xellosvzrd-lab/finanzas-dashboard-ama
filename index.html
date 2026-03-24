@@ -979,7 +979,7 @@
           <!-- Tabla derecha: Reembolsos -->
           <div class="chart-card" style="padding:0;overflow:hidden">
             <div style="padding:1.1rem 1.4rem .6rem; border-bottom:1px solid var(--border)">
-              <h3 style="font-size:1rem;font-weight:700;color:var(--accent2)">💳 Reembolsos de Daniel <span style="font-size:.78rem;color:var(--text-muted);font-weight:400">(gastos 100% de él)</span></h3>
+              <h3 style="font-size:1rem;font-weight:700;color:var(--accent2)">💳 Reembolsos <span style="font-size:.78rem;color:var(--text-muted);font-weight:400">(gastos individuales cruzados)</span></h3>
             </div>
             <div class="table-wrap">
               <table>
@@ -988,7 +988,7 @@
                     <th>Categoría</th>
                     <th style="text-align:right">Ama pagó</th>
                     <th style="text-align:right">Daniel pagó</th>
-                    <th style="text-align:right">Daniel debe</th>
+                    <th style="text-align:right">Monto</th>
                   </tr>
                 </thead>
                 <tbody id="comp-tabla-reembolsos">
@@ -1949,21 +1949,21 @@ function cargarCompartidos() {
   });
 
   // ── REEMBOLSOS ───────────────────────────────────────────────
-  // Gastos marcados "De Daniel" → Ama pagó el monto completo, Daniel debe reintegrar
-  // Separados por moneda: ARS y USD
-  const reembPorCatARS = {}, reembPorCatUSD = {};
-  CATS.forEach(cat => { reembPorCatARS[cat] = 0; reembPorCatUSD[cat] = 0; });
+  // Sección A: Ama pagó por Daniel ("De Daniel" de Ama) → Daniel le debe a Ama
+  // Sección B: Daniel pagó por Ama ("De Ama" de Daniel) → Ama le debe a Daniel
+  const reembA_ARS = {}, reembA_USD = {};
+  const reembB_ARS = {}, reembB_USD = {};
 
-  datos.filter(t => (t.responsabilidad || "Mío") === "De Daniel" && t.usuario === USUARIO).forEach(t => {
-    const cat    = t.categoria;
-    const moneda = (t.moneda || "ARS").toUpperCase();
-    if (!reembPorCatARS[cat]) reembPorCatARS[cat] = 0;
-    if (!reembPorCatUSD[cat]) reembPorCatUSD[cat] = 0;
-    if (moneda === "USD") {
-      reembPorCatUSD[cat] += Math.abs(Number(t.monto));
-    } else {
-      reembPorCatARS[cat] += Math.abs(Number(t.monto));
-    }
+  datos.filter(t => (t.responsabilidad || "Mío") === "De Daniel" && t.usuario === "Ama").forEach(t => {
+    const cat = t.categoria, mon = (t.moneda || "ARS").toUpperCase();
+    if (mon === "USD") { reembA_USD[cat] = (reembA_USD[cat]||0) + Math.abs(Number(t.monto)); }
+    else               { reembA_ARS[cat] = (reembA_ARS[cat]||0) + Math.abs(Number(t.monto)); }
+  });
+
+  datos.filter(t => (t.responsabilidad || "Mío") === "De Ama" && (t.usuario || "Daniel") === "Daniel").forEach(t => {
+    const cat = t.categoria, mon = (t.moneda || "ARS").toUpperCase();
+    if (mon === "USD") { reembB_USD[cat] = (reembB_USD[cat]||0) + Math.abs(Number(t.monto)); }
+    else               { reembB_ARS[cat] = (reembB_ARS[cat]||0) + Math.abs(Number(t.monto)); }
   });
 
   // ── RENDERIZAR TABLA COMPARTIDOS (ARS + USD separados) ───────
@@ -2067,86 +2067,80 @@ function cargarCompartidos() {
   tfootComp.innerHTML = tfootHtml;
 
   // ── RENDERIZAR TABLA REEMBOLSOS ──────────────────────────────
-  const filasReembARS = CATS.map(cat => ({ cat, val: reembPorCatARS[cat] })).filter(r => r.val > 0);
-  const filasReembUSD = CATS.map(cat => ({ cat, val: reembPorCatUSD[cat] })).filter(r => r.val > 0);
-  const totalReembARS = filasReembARS.reduce((s,r) => s + r.val, 0);
-  const totalReembUSD = filasReembUSD.reduce((s,r) => s + r.val, 0);
+  const filasA_ARS = Object.entries(reembA_ARS).filter(([,v])=>v>0).map(([cat,val])=>({cat,val}));
+  const filasA_USD = Object.entries(reembA_USD).filter(([,v])=>v>0).map(([cat,val])=>({cat,val}));
+  const filasB_ARS = Object.entries(reembB_ARS).filter(([,v])=>v>0).map(([cat,val])=>({cat,val}));
+  const filasB_USD = Object.entries(reembB_USD).filter(([,v])=>v>0).map(([cat,val])=>({cat,val}));
+  const totalA_ARS = filasA_ARS.reduce((s,r)=>s+r.val,0);
+  const totalA_USD = filasA_USD.reduce((s,r)=>s+r.val,0);
+  const totalB_ARS = filasB_ARS.reduce((s,r)=>s+r.val,0);
+  const totalB_USD = filasB_USD.reduce((s,r)=>s+r.val,0);
 
   const tbodyReemb = document.getElementById("comp-tabla-reembolsos");
-  if (!filasReembARS.length && !filasReembUSD.length) {
-    tbodyReemb.innerHTML = '<tr><td colspan="4"><div class="empty-state" style="padding:1.5rem">Sin reembolsos pendientes este mes</div></td></tr>';
+  const hayA = filasA_ARS.length > 0 || filasA_USD.length > 0;
+  const hayB = filasB_ARS.length > 0 || filasB_USD.length > 0;
+
+  if (!hayA && !hayB) {
+    tbodyReemb.innerHTML = '<tr><td colspan="4"><div class="empty-state" style="padding:1.5rem">Sin reembolsos este mes</div></td></tr>';
   } else {
-    let htmlReemb = "";
-    if (filasReembARS.length > 0) {
-      htmlReemb += `<tr style="background:var(--bg2);"><td colspan="4" style="padding:.4rem .8rem;font-size:.74rem;color:var(--text-muted);font-weight:600;letter-spacing:.05em;">🇦🇷 PESOS (ARS)</td></tr>`;
-      htmlReemb += filasReembARS.map(r => `<tr>
-        <td>${r.cat}</td>
-        <td style="text-align:right;font-weight:600;color:var(--accent2)">${fmt(r.val)}</td>
-        <td style="text-align:right;color:var(--text-muted)">—</td>
-        <td style="text-align:right;font-weight:700;color:var(--accent2)">${fmt(r.val)}</td>
-      </tr>`).join("");
+    const fmtR = (v, mon) => mon === "USD" ? fmtMoneda(v,"USD") : fmt(v);
+    const rowsA = (filas, mon) => filas.map(r=>`<tr>
+      <td>${r.cat}</td>
+      <td style="text-align:right;font-weight:600;color:var(--accent2)">${fmtR(r.val,mon)}</td>
+      <td style="text-align:right;color:var(--text-muted)">—</td>
+      <td style="text-align:right;font-weight:700;color:var(--accent2)">${fmtR(r.val,mon)}</td>
+    </tr>`).join("");
+    const rowsB = (filas, mon) => filas.map(r=>`<tr>
+      <td>${r.cat}</td>
+      <td style="text-align:right;color:var(--text-muted)">—</td>
+      <td style="text-align:right;font-weight:600;color:var(--yellow)">${fmtR(r.val,mon)}</td>
+      <td style="text-align:right;font-weight:700;color:var(--yellow)">${fmtR(r.val,mon)}</td>
+    </tr>`).join("");
+    const subHdr = (txt) => `<tr style="background:var(--bg2)"><td colspan="4" style="padding:.2rem .8rem;font-size:.72rem;color:var(--text-muted);">${txt}</td></tr>`;
+    let htmlR = "";
+    if (hayA) {
+      htmlR += `<tr style="background:var(--bg2)"><td colspan="4" style="padding:.4rem .8rem;font-size:.74rem;color:var(--accent2);font-weight:600;">💳 Ama pagó por Daniel — Daniel te debe</td></tr>`;
+      if (filasA_ARS.length) { if (filasA_USD.length) htmlR += subHdr("🇦🇷 ARS"); htmlR += rowsA(filasA_ARS,"ARS"); }
+      if (filasA_USD.length) { if (filasA_ARS.length) htmlR += subHdr("🇺🇸 USD"); htmlR += rowsA(filasA_USD,"USD"); }
     }
-    if (filasReembUSD.length > 0) {
-      if (filasReembARS.length > 0) htmlReemb += `<tr><td colspan="4" style="height:.4rem;background:var(--bg);padding:0;"></td></tr>`;
-      htmlReemb += `<tr style="background:var(--bg2);"><td colspan="4" style="padding:.4rem .8rem;font-size:.74rem;color:var(--text-muted);font-weight:600;letter-spacing:.05em;">🇺🇸 DÓLARES (USD)</td></tr>`;
-      htmlReemb += filasReembUSD.map(r => `<tr>
-        <td>${r.cat}</td>
-        <td style="text-align:right;font-weight:600;color:var(--accent2)">${fmtMoneda(r.val,"USD")}</td>
-        <td style="text-align:right;color:var(--text-muted)">—</td>
-        <td style="text-align:right;font-weight:700;color:var(--accent2)">${fmtMoneda(r.val,"USD")}</td>
-      </tr>`).join("");
+    if (hayB) {
+      if (hayA) htmlR += `<tr><td colspan="4" style="height:.4rem;background:var(--bg);padding:0;"></td></tr>`;
+      htmlR += `<tr style="background:var(--bg2)"><td colspan="4" style="padding:.4rem .8rem;font-size:.74rem;color:var(--yellow);font-weight:600;">⚠️ Daniel pagó por Ama — Vos le debés a Daniel</td></tr>`;
+      if (filasB_ARS.length) { if (filasB_USD.length) htmlR += subHdr("🇦🇷 ARS"); htmlR += rowsB(filasB_ARS,"ARS"); }
+      if (filasB_USD.length) { if (filasB_ARS.length) htmlR += subHdr("🇺🇸 USD"); htmlR += rowsB(filasB_USD,"USD"); }
     }
-    tbodyReemb.innerHTML = htmlReemb;
+    tbodyReemb.innerHTML = htmlR;
   }
 
   const tfootReemb = document.getElementById("comp-foot-reembolsos");
-  let tfootReembHtml = "";
-  if (filasReembARS.length > 0) {
-    tfootReembHtml += `<tr class="comp-tfoot-row">
-      <td><strong>TOTAL ARS</strong></td>
-      <td style="text-align:right">${fmt(totalReembARS)}</td>
-      <td style="text-align:right">—</td>
-      <td style="text-align:right" class="comp-tfoot-total">${fmt(totalReembARS)}</td>
-    </tr>`;
-  }
-  if (filasReembUSD.length > 0) {
-    tfootReembHtml += `<tr class="comp-tfoot-row">
-      <td><strong>TOTAL USD</strong></td>
-      <td style="text-align:right">${fmtMoneda(totalReembUSD,"USD")}</td>
-      <td style="text-align:right">—</td>
-      <td style="text-align:right" class="comp-tfoot-total">${fmtMoneda(totalReembUSD,"USD")}</td>
-    </tr>`;
-  }
-  tfootReembHtml += `<tr style="font-size:.73rem;color:var(--text-muted)">
-    <td colspan="2">Ama pagó por Daniel</td>
-    <td>Daniel pagó</td>
-    <td style="text-align:right">Daniel debe reintegrar</td>
-  </tr>`;
-  tfootReemb.innerHTML = tfootReembHtml;
+  let tfootR = "";
+  if (totalA_ARS>0) tfootR += `<tr class="comp-tfoot-row"><td><strong>Daniel debe (ARS)</strong></td><td style="text-align:right">${fmt(totalA_ARS)}</td><td style="text-align:right">—</td><td style="text-align:right" class="comp-tfoot-total">${fmt(totalA_ARS)}</td></tr>`;
+  if (totalA_USD>0) tfootR += `<tr class="comp-tfoot-row"><td><strong>Daniel debe (USD)</strong></td><td style="text-align:right">${fmtMoneda(totalA_USD,"USD")}</td><td style="text-align:right">—</td><td style="text-align:right" class="comp-tfoot-total">${fmtMoneda(totalA_USD,"USD")}</td></tr>`;
+  if (totalB_ARS>0) tfootR += `<tr class="comp-tfoot-row"><td><strong>Ama debe (ARS)</strong></td><td style="text-align:right">—</td><td style="text-align:right">${fmt(totalB_ARS)}</td><td style="text-align:right" class="comp-tfoot-total">${fmt(totalB_ARS)}</td></tr>`;
+  if (totalB_USD>0) tfootR += `<tr class="comp-tfoot-row"><td><strong>Ama debe (USD)</strong></td><td style="text-align:right">—</td><td style="text-align:right">${fmtMoneda(totalB_USD,"USD")}</td><td style="text-align:right" class="comp-tfoot-total">${fmtMoneda(totalB_USD,"USD")}</td></tr>`;
+  tfootR += `<tr style="font-size:.73rem;color:var(--text-muted)"><td colspan="2">Ama pagó por Daniel</td><td>Daniel pagó por Ama</td><td style="text-align:right">Monto</td></tr>`;
+  tfootReemb.innerHTML = tfootR;
 
   // ── BALANCE FINAL ────────────────────────────────────────────
-  // Perspectiva de Ama: ¿cuánto le debe Daniel a ella?
-  // totalCompNet = daniel - ama → positivo = Daniel pagó más → Ama le debe a Daniel → hay que NEGAR para balance de Ama
-  // totalReemb = gastos de Ama por Daniel → siempre a favor de Ama (+)
-  const balanceFinalARS = totalReembARS - totalCompNetARS;
-  const balanceFinalUSD = totalReembUSD - totalCompNetUSD;
+  // Perspectiva de Ama: ¿cuánto le debe Daniel (neto)?
+  // compNet = daniel - ama → + = Ama debe; reembA = Ama pagó por Daniel (+); reembB = Daniel pagó por Ama (-)
+  const balanceFinalARS = totalA_ARS - totalB_ARS - totalCompNetARS;
+  const balanceFinalUSD = totalA_USD - totalB_USD - totalCompNetUSD;
 
   const balEl  = document.getElementById("comp-balance-valor");
   const balSub = document.getElementById("comp-balance-sub");
 
-  // Mostrar el balance principal en ARS; si hay USD, agregarlo aparte
-  const hayUSD = filasCompUSD.length > 0 || filasReembUSD.length > 0;
+  const hayUSD = filasCompUSD.length > 0 || filasA_USD.length > 0 || filasB_USD.length > 0;
   balEl.textContent = fmt(Math.abs(balanceFinalARS)) + (hayUSD && balanceFinalUSD !== 0 ? " + " + fmtMoneda(Math.abs(balanceFinalUSD), "USD") : "");
   balEl.className   = "comp-balance-value " + (balanceFinalARS >= 0 ? "positivo" : "negativo");
 
-  // desglose: solo mostrar componentes que favorecen a Ama (Daniel le debe por eso)
-  const compAmaNetARS = -totalCompNetARS; // Ama pagó más en compartidos ARS → Daniel debe
-  const compAmaNetUSD = -totalCompNetUSD; // Ama pagó más en compartidos USD → Daniel debe
+  const compAmaNetARS = -totalCompNetARS;
+  const compAmaNetUSD = -totalCompNetUSD;
   const desglose = [];
   if (compAmaNetARS > 0) desglose.push(`Compartidos ARS: ${fmt(compAmaNetARS)}`);
-  if (totalReembARS > 0) desglose.push(`Reembolsos ARS: ${fmt(totalReembARS)}`);
-  if (compAmaNetUSD > 0) desglose.push(`Compartidos USD: ${fmtMoneda(compAmaNetUSD, "USD")}`);
-  if (totalReembUSD > 0) desglose.push(`Reembolsos USD: ${fmtMoneda(totalReembUSD, "USD")}`);
+  if (totalA_ARS > 0)    desglose.push(`Reembolsos ARS: ${fmt(totalA_ARS)}`);
+  if (compAmaNetUSD > 0) desglose.push(`Compartidos USD: ${fmtMoneda(compAmaNetUSD,"USD")}`);
+  if (totalA_USD > 0)    desglose.push(`Reembolsos USD: ${fmtMoneda(totalA_USD,"USD")}`);
 
   const debeAma = balanceFinalARS > 0 || balanceFinalUSD > 0;
   const vosDebés = balanceFinalARS < 0 || balanceFinalUSD < 0;
