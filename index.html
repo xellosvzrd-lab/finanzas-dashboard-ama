@@ -2199,7 +2199,7 @@ function cargarCompartidos() {
   const balEl  = document.getElementById("comp-balance-valor");
   const balSub = document.getElementById("comp-balance-sub");
 
-  const hayUSD = filasCompUSD.length > 0 || filasA_USD.length > 0 || filasB_USD.length > 0;
+  const hayUSD = filasCompUSD.length > 0 || catsReembUSD.length > 0;
   balEl.textContent = fmt(Math.abs(balanceFinalARS)) + (hayUSD && balanceFinalUSD !== 0 ? " + " + fmtMoneda(Math.abs(balanceFinalUSD), "USD") : "");
   balEl.className   = "comp-balance-value " + (balanceFinalARS >= 0 ? "positivo" : "negativo");
 
