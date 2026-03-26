@@ -1172,7 +1172,7 @@
         </div>
 
         <p class="pres-note">
-          💡 Los gastos <strong>Compartidos</strong> cuentan al 50% · Los gastos <strong>De Daniel</strong> no se cuentan · Solo se consideran tus transacciones.
+          💡 Gastos <strong>Mío</strong> → 100% · Gastos <strong>Compartidos</strong> (tuyos + de Daniel, netos de reintegros compartidos) → 50% · Gastos <strong>De Ama</strong> que pagó Daniel → 100% · Gastos <strong>De Daniel</strong> → 0%
         </p>
         <div id="pres-msg" style="margin-top:.5rem;font-size:.85rem;min-height:1.2em"></div>
       </div><!-- /page-presupuesto -->
@@ -1509,22 +1509,20 @@ async function cargarResumenMes() {
   const mes  = document.getElementById("sel-mes-resumen").value;
   const anio = document.getElementById("sel-anio-resumen").value;
 
-  // Filtrar local — solo transacciones del usuario activo
-  const datos = allTransac.filter(t => {
+  // Todas las transacciones del mes (ambos usuarios — necesario para Comp y "De Ama")
+  const dataMesAll = allTransac.filter(t => {
     const d = new Date(t.fecha + "T12:00:00");
-    return (d.getMonth() + 1) === parseInt(mes) && d.getFullYear() === parseInt(anio) && t.usuario === USUARIO;
+    return (d.getMonth() + 1) === parseInt(mes) && d.getFullYear() === parseInt(anio);
   });
+  // Solo las de Ama (para ingresos KPI y drill-down)
+  const datos = dataMesAll.filter(t => t.usuario === USUARIO);
 
   // ── INGRESOS KPI — lógica específica de Ama ──────────────────
   // ARS: Sueldo + Otros Ingresos + Intereses + neto Cambio ARS
   // USD: Sueldo USD + neto Cambio USD
-  // "Cambio" compensa la venta/compra de dólares: no es gasto real ni ingreso autónomo.
-  // Se excluyen Internas (transferencias entre cuentas propias).
-
   const CATS_INGRESO_ARS = ["Sueldo", "Otros Ingresos", "Intereses"];
   const CATS_INGRESO_USD = ["Sueldo USD"];
 
-  // Ingresos base (sin Cambio)
   const ingresosBaseARS = datos.filter(t => t.tipo === "Ingreso" && !esTransferencia(t)
     && CATS_INGRESO_ARS.includes(t.categoria) && (t.moneda || "ARS") === "ARS")
     .reduce((s,t) => s + Math.abs(Number(t.monto)), 0);
@@ -1532,9 +1530,6 @@ async function cargarResumenMes() {
     && CATS_INGRESO_USD.includes(t.categoria) && (t.moneda || "ARS") === "USD")
     .reduce((s,t) => s + Math.abs(Number(t.monto)), 0);
 
-  // Neto Cambio: Ingreso Cambio - Gasto Cambio, separado por moneda
-  // Vender USD → Gasto USD "Cambio" + Ingreso ARS "Cambio" → netCambioARS > 0, netCambioUSD < 0
-  // Comprar USD → Gasto ARS "Cambio" + Ingreso USD "Cambio" → netCambioARS < 0, netCambioUSD > 0
   const netCambioARS = datos.filter(t => t.categoria === "Cambio" && !esTransferencia(t)
     && (t.moneda || "ARS") === "ARS")
     .reduce((s,t) => s + (t.tipo === "Ingreso" ? 1 : -1) * Math.abs(Number(t.monto)), 0);
@@ -1545,19 +1540,36 @@ async function cargarResumenMes() {
   const ingresosARS = ingresosBaseARS + netCambioARS;
   const ingresosUSD = ingresosBaseUSD + netCambioUSD;
 
-  // ── GASTOS KPI — neto por categoría (excluye Cambio) ─────────
-  // Cambio ya está contabilizado en ingresos; excluirlo evita doble conteo.
-  // Reintegros de la misma categoría reducen el gasto (ej: reintegro Mercado reduce gasto Mercado).
+  // ── GASTOS REALES por categoría (lógica de responsabilidad) ──
+  // "Mío" Ama         → 100%  (neto: gastos − ingresos Mío, excluye Cambio)
+  // "Compartido" todos → 50%  (neto: gastos − ingresos Comp de ambos)
+  // "De Ama" de Daniel → 100% (Daniel pagó por Ama; Ama le debe)
+  // "De Daniel" Ama   → 0%   (excluido — Daniel le reembolsará)
   const catMapARS = {}, catMapUSD = {};
-  datos.filter(t => !esTransferencia(t) && t.categoria !== "Cambio").forEach(t => {
-    const m   = Math.abs(Number(t.monto));
-    const mon = (t.moneda || "ARS").toUpperCase();
-    const map = mon === "USD" ? catMapUSD : catMapARS;
-    if (t.tipo === "Gasto")        map[t.categoria] = (map[t.categoria] || 0) + m;
-    else if (t.tipo === "Ingreso") map[t.categoria] = (map[t.categoria] || 0) - m;
+  const CATS_EXCLUIR = [...CATS_INGRESO_ARS, ...CATS_INGRESO_USD, "Cambio"];
+  const allExpCats = [...new Set(dataMesAll
+    .filter(t => !esTransferencia(t) && !CATS_EXCLUIR.includes(t.categoria))
+    .map(t => t.categoria))];
+
+  allExpCats.forEach(cat => {
+    ["ARS", "USD"].forEach(mon => {
+      const g = (arr, tipo, resp) => arr.filter(t =>
+        !esTransferencia(t) && t.tipo === tipo && t.categoria === cat
+        && (resp === "Mío" ? (t.responsabilidad || "Mío") === "Mío" : t.responsabilidad === resp)
+        && (t.moneda || "ARS") === mon
+      ).reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+
+      const real =
+        Math.max(0, g(datos,      "Gasto",   "Mío")        - g(datos,      "Ingreso", "Mío"))
+      + Math.max(0, g(dataMesAll, "Gasto",   "Compartido") - g(dataMesAll, "Ingreso", "Compartido")) * 0.5
+      + Math.max(0, g(dataMesAll, "Gasto",   "De Ama")     - g(dataMesAll, "Ingreso", "De Ama"));
+
+      if (real > 0) (mon === "USD" ? catMapUSD : catMapARS)[cat] = real;
+    });
   });
-  const sortedCatsARS = Object.entries(catMapARS).filter(([,v]) => v > 0).sort((a,b) => b[1] - a[1]);
-  const sortedCatsUSD = Object.entries(catMapUSD).filter(([,v]) => v > 0).sort((a,b) => b[1] - a[1]);
+
+  const sortedCatsARS = Object.entries(catMapARS).sort((a,b) => b[1] - a[1]);
+  const sortedCatsUSD = Object.entries(catMapUSD).sort((a,b) => b[1] - a[1]);
   const gastosNetARS  = sortedCatsARS.reduce((s,[,v]) => s + v, 0);
   const gastosNetUSD  = sortedCatsUSD.reduce((s,[,v]) => s + v, 0);
 
@@ -1582,9 +1594,7 @@ async function cargarResumenMes() {
   if (ingresosUSD !== 0)  ingSubParts.push(`USD: ${fmtMoneda(Math.abs(ingresosUSD),"USD")} ${ingresosUSD >= 0 ? "✅" : "⚠️"}`);
   document.getElementById("kpi-ingresos-sub").textContent = ingSubParts.join(" · ");
 
-  const gasTxCount = datos.filter(t => t.tipo === "Gasto" && !esTransferencia(t)
-    && t.categoria !== "Cambio").length;
-  const gasSubParts = [`${gasTxCount} tx · neto de reintegros`];
+  const gasSubParts = ["Mío 100% · Comp 50% · Reembolsos Daniel"];
   if (gastosNetUSD > 0) gasSubParts.push(`+ ${fmtMoneda(gastosNetUSD,"USD")} USD`);
   document.getElementById("kpi-gastos-sub").textContent = gasSubParts.join(" · ");
 
@@ -2537,28 +2547,67 @@ function renderPresupuesto() {
   const mes  = parseInt(document.getElementById("pres-mes").value);
   const anio = parseInt(document.getElementById("pres-anio").value);
 
-  // Transacciones del mes del usuario actual
+  // Todas las transacciones del mes (ambos usuarios — para Compartido y "De Ama")
   const dataMes = allTransac.filter(t => {
     const d = new Date(t.fecha + "T12:00:00");
-    return (d.getMonth() + 1) === mes && d.getFullYear() === anio && t.usuario === USUARIO;
+    return (d.getMonth() + 1) === mes && d.getFullYear() === anio;
   });
+  // Solo las de Ama (para "Mío" y KPI sueldo)
+  const dataMesAma = dataMes.filter(t => t.usuario === USUARIO);
 
-  // Sueldo = ingresos genuinos del mes (solo categorías de ingreso propio)
-  const CATS_SUELDO = ["Sueldo", "Otros Ingresos", "Intereses"];
-  const sueldo = dataMes
-    .filter(t => t.tipo === "Ingreso" && CATS_SUELDO.includes(t.categoria))
+  // Sueldo KPI = ingresos reales de Ama (ARS)
+  const CATS_INGRESO_REAL = ["Sueldo", "Otros Ingresos", "Intereses"];
+  const sueldo = dataMesAma
+    .filter(t => t.tipo === "Ingreso" && CATS_INGRESO_REAL.includes(t.categoria)
+             && (t.moneda || "ARS") === "ARS")
     .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
 
-  // Gasto neto por categoría: gastos − ingresos de la misma categoría
-  // (misma lógica que catMap: los reintegros reducen el gasto real)
+  // Gasto efectivo por categoría usando lógica de responsabilidad:
+  //   "Mío" Ama           → 100%
+  //   "Compartido" todos  → 50% (neto de ingresos compartidos)
+  //   "De Ama" de Daniel  → 100% (Daniel pagó por Ama; ella le debe)
+  //   "De Daniel" Ama     → 0%  (excluido)
   const gastoPorCat = {};
-  dataMes.filter(t => !esTransferencia(t)).forEach(t => {
-    const m = Math.abs(Number(t.monto));
-    if (t.tipo === "Gasto")        gastoPorCat[t.categoria] = (gastoPorCat[t.categoria] || 0) + m;
-    else if (t.tipo === "Ingreso") gastoPorCat[t.categoria] = (gastoPorCat[t.categoria] || 0) - m;
+  categGasto.forEach(cat => {
+    const gastosMio = dataMesAma
+      .filter(t => t.tipo === "Gasto" && t.categoria === cat
+               && (t.responsabilidad || "Mío") === "Mío"
+               && !esTransferencia(t) && (t.moneda || "ARS") === "ARS")
+      .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+    const ingresosMio = dataMesAma
+      .filter(t => t.tipo === "Ingreso" && t.categoria === cat
+               && (t.responsabilidad || "Mío") === "Mío"
+               && !esTransferencia(t) && (t.moneda || "ARS") === "ARS")
+      .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+
+    const gastosComp = dataMes
+      .filter(t => t.tipo === "Gasto" && t.categoria === cat
+               && t.responsabilidad === "Compartido"
+               && !esTransferencia(t) && (t.moneda || "ARS") === "ARS")
+      .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+    const ingresosComp = dataMes
+      .filter(t => t.tipo === "Ingreso" && t.categoria === cat
+               && t.responsabilidad === "Compartido"
+               && !esTransferencia(t) && (t.moneda || "ARS") === "ARS")
+      .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+
+    // "De Ama" de Daniel → 100% de Ama (Daniel pagó por ella)
+    const deAmaGasto = dataMes
+      .filter(t => t.tipo === "Gasto" && t.categoria === cat
+               && t.responsabilidad === "De Ama"
+               && !esTransferencia(t) && (t.moneda || "ARS") === "ARS")
+      .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+    const deAmaIngreso = dataMes
+      .filter(t => t.tipo === "Ingreso" && t.categoria === cat
+               && t.responsabilidad === "De Ama"
+               && !esTransferencia(t) && (t.moneda || "ARS") === "ARS")
+      .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+
+    const netComp = Math.max(0, gastosComp - ingresosComp);
+    gastoPorCat[cat] = Math.max(0, gastosMio - ingresosMio)
+                     + netComp * 0.5
+                     + Math.max(0, deAmaGasto - deAmaIngreso);
   });
-  // Clampear a 0: si el reintegro supera el gasto, el neto es 0 (no negativo)
-  Object.keys(gastoPorCat).forEach(k => { if (gastoPorCat[k] < 0) gastoPorCat[k] = 0; });
 
   // Totales KPI
   const totalPres   = categGasto.reduce((s, c) => s + (presupuestoActual[c] || 0), 0);
@@ -2634,31 +2683,69 @@ function renderPresupuesto() {
 function actualizarKpisPres() {
   const mes  = parseInt(document.getElementById("pres-mes").value);
   const anio = parseInt(document.getElementById("pres-anio").value);
+
   const dataMes = allTransac.filter(t => {
     const d = new Date(t.fecha + "T12:00:00");
-    return (d.getMonth() + 1) === mes && d.getFullYear() === anio && t.usuario === USUARIO;
+    return (d.getMonth() + 1) === mes && d.getFullYear() === anio;
   });
-  const CATS_SUELDO = ["Sueldo", "Otros Ingresos", "Intereses"];
-  const sueldo = dataMes.filter(t => t.tipo === "Ingreso" && CATS_SUELDO.includes(t.categoria)).reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+  const dataMesAma = dataMes.filter(t => t.usuario === USUARIO);
+
+  const CATS_INGRESO_REAL = ["Sueldo", "Otros Ingresos", "Intereses"];
+  const sueldo = dataMesAma
+    .filter(t => t.tipo === "Ingreso" && CATS_INGRESO_REAL.includes(t.categoria)
+             && (t.moneda || "ARS") === "ARS")
+    .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+
   const gastoPorCat = {};
-  dataMes.filter(t => !esTransferencia(t)).forEach(t => {
-    const m = Math.abs(Number(t.monto));
-    if (t.tipo === "Gasto")        gastoPorCat[t.categoria] = (gastoPorCat[t.categoria] || 0) + m;
-    else if (t.tipo === "Ingreso") gastoPorCat[t.categoria] = (gastoPorCat[t.categoria] || 0) - m;
+  categGasto.forEach(cat => {
+    const gastosMio = dataMesAma
+      .filter(t => t.tipo === "Gasto" && t.categoria === cat
+               && (t.responsabilidad || "Mío") === "Mío"
+               && !esTransferencia(t) && (t.moneda || "ARS") === "ARS")
+      .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+    const ingresosMio = dataMesAma
+      .filter(t => t.tipo === "Ingreso" && t.categoria === cat
+               && (t.responsabilidad || "Mío") === "Mío"
+               && !esTransferencia(t) && (t.moneda || "ARS") === "ARS")
+      .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+    const gastosComp = dataMes
+      .filter(t => t.tipo === "Gasto" && t.categoria === cat
+               && t.responsabilidad === "Compartido"
+               && !esTransferencia(t) && (t.moneda || "ARS") === "ARS")
+      .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+    const ingresosComp = dataMes
+      .filter(t => t.tipo === "Ingreso" && t.categoria === cat
+               && t.responsabilidad === "Compartido"
+               && !esTransferencia(t) && (t.moneda || "ARS") === "ARS")
+      .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+    const deAmaGasto = dataMes
+      .filter(t => t.tipo === "Gasto" && t.categoria === cat
+               && t.responsabilidad === "De Ama"
+               && !esTransferencia(t) && (t.moneda || "ARS") === "ARS")
+      .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+    const deAmaIngreso = dataMes
+      .filter(t => t.tipo === "Ingreso" && t.categoria === cat
+               && t.responsabilidad === "De Ama"
+               && !esTransferencia(t) && (t.moneda || "ARS") === "ARS")
+      .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+    gastoPorCat[cat] = Math.max(0, gastosMio - ingresosMio)
+                     + Math.max(0, gastosComp - ingresosComp) * 0.5
+                     + Math.max(0, deAmaGasto - deAmaIngreso);
   });
-  Object.keys(gastoPorCat).forEach(k => { if (gastoPorCat[k] < 0) gastoPorCat[k] = 0; });
 
   let totalPres = 0;
   document.querySelectorAll("#pres-tbody .pres-input").forEach(inp => {
     totalPres += parseFloat(inp.value) || 0;
   });
 
-  const totalGasto = Object.values(gastoPorCat).reduce((s, v) => s + v, 0);
+  const totalGasto = categGasto.reduce((s, c) => s + (gastoPorCat[c] || 0), 0);
   const disponible = sueldo - totalGasto;
 
   const kpiTotal = document.getElementById("pres-kpi-total");
   kpiTotal.textContent = fmt(totalPres);
   kpiTotal.style.color = totalPres > sueldo && sueldo > 0 ? "var(--red)" : "var(--accent)";
+
+  document.getElementById("pres-kpi-gastado").textContent = fmt(totalGasto);
 
   const kpiDisp = document.getElementById("pres-kpi-disponible");
   kpiDisp.textContent = fmt(disponible);
