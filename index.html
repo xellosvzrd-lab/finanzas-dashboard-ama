@@ -218,6 +218,9 @@
   .kpi-value.balance-neg { color: var(--red); }
   .kpi-sub { font-size: .74rem; color: var(--text-muted); margin-top: .35rem; font-weight: 400; }
 
+  /* Grid de 4 KPIs (presupuesto) — en desktop 4 cols, tablet/mobile 2 */
+  .kpi-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
   /* ─── CHARTS GRID ───────────────────────────────────────── */
   .charts-grid {
     display: grid;
@@ -634,6 +637,17 @@
   }
   .sidebar-overlay.open { display: block; }
 
+  /* ─── TABLET (769px – 1100px) ─────────────────────────────── */
+  @media (min-width: 769px) and (max-width: 1100px) {
+    .sidebar { width: 195px; }
+    .main { margin-left: 195px; padding: 1.5rem 1.5rem; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .kpi-grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .charts-grid { grid-template-columns: 1fr; }
+    .comp-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ─── MOBILE (≤ 768px) ─────────────────────────────────────── */
   @media (max-width: 768px) {
     /* Mostrar header mobile, ocultar sidebar por default */
     .mobile-header { display: flex; }
@@ -648,8 +662,13 @@
     /* Contenido ocupa todo el ancho */
     .main { margin-left: 0; padding: 4.5rem 1rem 2rem; }
 
-    /* KPIs en 2 columnas */
+    /* KPIs: 2 columnas + forzar 4-columnas a 2 */
     .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .kpi-grid-4 { grid-template-columns: repeat(2, 1fr); }
+
+    /* KPI cards más compactas */
+    .kpi-value { font-size: 1.3rem; }
+    .kpi-card { padding: 1rem 1.1rem; }
 
     /* Formulario en 1 columna */
     .form-row { grid-template-columns: 1fr; }
@@ -660,23 +679,64 @@
       gap: .75rem; margin-bottom: 1.2rem;
     }
     .page-header h1 { font-size: 1.2rem; }
+    .page-header .btn { align-self: flex-start; }
 
-    /* Tabla sin overflow horizontal abrupto */
+    /* Tabla: scroll horizontal suave */
     .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
-    /* Balance de compartidos en columna */
-    .comp-balance-card { flex-direction: column; gap: .75rem; padding: 1.2rem; }
-    .comp-balance-value { font-size: 1.6rem; }
+    /* Celdas más compactas en móvil */
+    tbody td, thead th { padding: .55rem .65rem; }
 
-    /* KPI value más chico en pantallas pequeñas */
-    .kpi-value { font-size: 1.35rem; }
-    .kpi-card { padding: 1rem 1.1rem; }
+    /* Filtros en columna para mejor uso del espacio táctil */
+    .table-filters { flex-direction: column; gap: .5rem; }
+    .table-filters > * { width: 100%; box-sizing: border-box; }
+    .table-filters select, .table-filters input { width: 100%; }
+    .multi-select-wrap { width: 100%; }
+    .multi-select-btn { width: 100%; justify-content: space-between; }
+    .multi-select-panel { width: 100%; min-width: unset; max-height: 240px; }
+
+    /* Subtotal bar: más compacto */
+    .tabla-subtotal { gap: .6rem; padding: .45rem .75rem; font-size: .8rem; }
+
+    /* Balance de compartidos en columna */
+    .comp-balance-card { flex-direction: column; gap: .6rem; padding: 1.1rem 1.2rem; }
+    .comp-balance-value { font-size: 1.5rem; }
+
+    /* Presupuesto: ocultar barra de progreso visual en móvil */
+    .pres-bar-bg { display: none; }
+    .pres-bar-wrap { min-width: auto; }
+    .pres-input { width: 88px; }
+    .pres-note { font-size: .73rem; }
+
+    /* Toast: centrado abajo */
+    .toast { left: 1rem; right: 1rem; bottom: 1rem; }
+
+    /* Touch targets mínimos 44px */
+    .btn { min-height: 44px; }
+    .hamburger-btn { min-height: 44px; min-width: 44px; }
+    .delete-btn { min-height: 36px; min-width: 36px; padding: .35rem .55rem; }
+
+    /* Selectores más grandes para tacto */
+    .mes-selector select { padding: .52rem 1rem; min-height: 38px; font-size: .88rem; }
+
+    /* Charts: menos alto */
+    .chart-card { padding: 1rem; }
+    .chart-wrap { height: 210px; }
   }
 
-  @media (max-width: 400px) {
-    .kpi-grid { grid-template-columns: 1fr 1fr; gap: .65rem; }
-    .kpi-value { font-size: 1.15rem; }
-    .main { padding: 4.2rem .75rem 1.5rem; }
+  /* ─── OCULTAR COLUMNAS SECUNDARIAS (≤ 680px) ──────────────── */
+  @media (max-width: 680px) {
+    .col-hide-sm { display: none !important; }
+  }
+
+  /* ─── OCULTAR COLUMNAS TERCIARIAS (≤ 440px) ───────────────── */
+  @media (max-width: 440px) {
+    .col-hide-xs { display: none !important; }
+    .kpi-value { font-size: 1.1rem; }
+    .kpi-label { font-size: .65rem; }
+    .main { padding: 4.2rem .6rem 1.5rem; }
+    .kpi-grid { gap: .55rem; }
+    tbody td, thead th { padding: .42rem .45rem; font-size: .79rem; }
   }
 </style>
 </head>
@@ -887,13 +947,13 @@
               <thead>
                 <tr>
                   <th>Fecha</th>
-                  <th>Tipo</th>
+                  <th class="col-hide-xs">Tipo</th>
                   <th>Categoría</th>
-                  <th>Fuente</th>
-                  <th>Responsabilidad</th>
-                  <th>Descripción</th>
+                  <th class="col-hide-sm">Fuente</th>
+                  <th class="col-hide-sm">Responsabilidad</th>
+                  <th class="col-hide-sm">Descripción</th>
                   <th style="text-align:right">Monto</th>
-                  <th>Moneda</th>
+                  <th class="col-hide-xs">Moneda</th>
                   <th></th>
                 </tr>
               </thead>
@@ -1070,7 +1130,7 @@
         </div>
 
         <!-- KPI strip -->
-        <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi-grid kpi-grid-4">
           <div class="kpi-card">
             <div class="kpi-label">💰 Sueldo del mes</div>
             <div class="kpi-value income" id="pres-kpi-sueldo">$0</div>
@@ -1916,14 +1976,14 @@ function filtrarTabla() {
       : `<span class="badge-moneda ars">ARS</span>`;
     return `
     <tr>
-      <td style="color:var(--text-muted);font-size:.83rem;">${fmtFecha(t.fecha)}</td>
-      <td><span class="badge badge-${t.tipo.toLowerCase()}">${t.tipo}</span></td>
+      <td style="color:var(--text-muted);font-size:.83rem;white-space:nowrap">${fmtFecha(t.fecha)}</td>
+      <td class="col-hide-xs"><span class="badge badge-${t.tipo.toLowerCase()}">${t.tipo}</span></td>
       <td>${t.categoria}</td>
-      <td style="color:var(--text-muted);font-size:.83rem">${t.fuente || "—"}</td>
-      <td><span style="color:${respColor[r]||'var(--text-muted)'};font-size:.85rem">${respEmoji[r]||""} ${r}</span></td>
-      <td style="color:var(--text-muted)">${t.descripcion || "—"}</td>
-      <td style="text-align:right;font-weight:600;color:${t.tipo==="Ingreso"?"var(--green)":"var(--red)"}">${fmtMoneda(t.monto, mon)}</td>
-      <td>${monBadge}</td>
+      <td class="col-hide-sm" style="color:var(--text-muted);font-size:.83rem">${t.fuente || "—"}</td>
+      <td class="col-hide-sm"><span style="color:${respColor[r]||'var(--text-muted)'};font-size:.85rem">${respEmoji[r]||""} ${r}</span></td>
+      <td class="col-hide-sm" style="color:var(--text-muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.descripcion || "—"}</td>
+      <td style="text-align:right;font-weight:600;white-space:nowrap;color:${t.tipo==="Ingreso"?"var(--green)":"var(--red)"}">${fmtMoneda(t.monto, mon)}</td>
+      <td class="col-hide-xs">${monBadge}</td>
       <td><button class="delete-btn" onclick="eliminarTransaccion('${t.id}')" title="Eliminar">🗑️</button></td>
     </tr>`
   }).join("");
