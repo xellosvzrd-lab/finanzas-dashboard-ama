@@ -3403,7 +3403,7 @@ function animatePct(el, toValue, duration = 680) {
 
 // ─── FORMATEO ─────────────────────────────────────────────────
 function fmt(n) {
-  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
+  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
 function fmtMoneda(n, moneda) {
   if (moneda === "USD") {
