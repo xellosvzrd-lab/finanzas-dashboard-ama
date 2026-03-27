@@ -44,7 +44,60 @@
     --shadow: 0 8px 40px rgba(0,0,0,0.55);
     --glass:  rgba(255,255,255,0.035);
     --glass-border: rgba(255,255,255,0.07);
+    --glass-bg: rgba(12,12,34,0.65);
+    --sidebar-bg: rgba(7,7,20,0.92);
   }
+
+  /* ─── MODO CLARO ─────────────────────────────────────────── */
+  [data-theme="light"] {
+    --bg:      #f2f2fa;
+    --bg2:     #e8e8f4;
+    --bg3:     #ededf8;
+    --card:    #ffffff;
+    --border:  #dcdcf0;
+    --border2: #c4c4e0;
+
+    --accent:      #6c5ce7;
+    --accent-dim:  rgba(108,92,231,0.10);
+    --accent-glow: rgba(108,92,231,0.18);
+    --accent2:     #e8409a;
+    --accent2-dim: rgba(232,64,154,0.10);
+
+    --green:      #059669;
+    --green-dim:  rgba(5,150,105,0.10);
+    --red:        #dc2626;
+    --red-dim:    rgba(220,38,38,0.10);
+    --yellow:     #d97706;
+    --yellow-dim: rgba(217,119,6,0.10);
+
+    --text:       #18183a;
+    --text-muted: #7070a8;
+
+    --shadow:       0 8px 40px rgba(0,0,0,0.10);
+    --glass:        rgba(255,255,255,0.60);
+    --glass-border: rgba(0,0,0,0.07);
+    --glass-bg:     rgba(255,255,255,0.82);
+    --sidebar-bg:   rgba(248,248,255,0.96);
+  }
+  [data-theme="light"] body {
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse 90% 55% at 12% -8%, rgba(108,92,231,0.10) 0%, transparent 55%),
+      radial-gradient(ellipse 65% 45% at 92% 105%, rgba(232,64,154,0.07) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 40% at 50% 50%, rgba(5,150,105,0.03) 0%, transparent 60%);
+  }
+  [data-theme="light"] .sidebar {
+    border-right-color: var(--border);
+    box-shadow: 2px 0 24px rgba(0,0,0,0.06);
+  }
+  [data-theme="light"] .nav-item { color: #3a3a6a; }
+  [data-theme="light"] .nav-item:hover { background: var(--accent-dim); color: var(--accent); }
+  [data-theme="light"] .nav-item.active { color: var(--accent); }
+  [data-theme="light"] .sidebar-logo h2 { color: var(--accent); }
+  [data-theme="light"] .data-table th { background: var(--bg2); color: var(--text-muted); }
+  [data-theme="light"] .data-table tr:hover td { background: var(--bg2); }
+  [data-theme="light"] input,
+  [data-theme="light"] select { background: var(--bg2); border-color: var(--border); color: var(--text); }
 
   body {
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -111,7 +164,7 @@
 
   .sidebar {
     width: 230px;
-    background: rgba(7,7,20,0.92);
+    background: var(--sidebar-bg);
     backdrop-filter: blur(32px);
     -webkit-backdrop-filter: blur(32px);
     border-right: 1px solid rgba(255,255,255,0.055);
@@ -202,7 +255,7 @@
     gap: 1rem; margin-bottom: 1.8rem;
   }
   .kpi-card {
-    background: rgba(12,12,34,0.65);
+    background: var(--glass-bg);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid var(--glass-border);
@@ -253,7 +306,7 @@
   @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
 
   .chart-card {
-    background: rgba(12,12,34,0.65);
+    background: var(--glass-bg);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid var(--glass-border);
@@ -356,7 +409,7 @@
   @media (max-width: 900px) { .comp-grid { grid-template-columns: 1fr; } }
 
   .comp-balance-card {
-    background: rgba(12,12,34,0.65);
+    background: var(--glass-bg);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid rgba(240,111,160,0.28);
@@ -456,7 +509,7 @@
   /* ─── ANILLO DE PROGRESO TOTAL ──────────────────────────────── */
   .pres-ring-card {
     display: flex; align-items: center; gap: 2.5rem; flex-wrap: wrap;
-    background: rgba(12,12,34,0.6);
+    background: var(--glass-bg);
     backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius); padding: 1.5rem 2rem;
@@ -574,7 +627,7 @@
 
   /* ─── FORMULARIO NUEVA TRANSACCIÓN ─────────────────────── */
   .form-card {
-    background: rgba(12,12,34,0.7);
+    background: var(--glass-bg);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid var(--glass-border);
@@ -867,6 +920,67 @@
     .main { padding: 4.2rem .6rem 1.5rem; }
     .kpi-grid { gap: .55rem; }
     tbody td, thead th { padding: .42rem .45rem; font-size: .79rem; }
+  }
+
+  /* ─── THEME TOGGLE ───────────────────────────────────────── */
+  .theme-toggle-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    padding: 1.2rem 1.6rem;
+    margin-bottom: 1.4rem;
+  }
+  .theme-toggle-label { font-size: .95rem; font-weight: 600; color: var(--text); }
+  .theme-toggle-label span { display: block; font-size: .78rem; color: var(--text-muted); font-weight: 400; margin-top: .2rem; }
+
+  .theme-pill {
+    position: relative;
+    width: 72px;
+    height: 36px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .theme-pill input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .theme-pill-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: var(--bg2);
+    border: 1.5px solid var(--border2);
+    transition: background .25s, border-color .25s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 6px;
+    font-size: .85rem;
+  }
+  .theme-pill input:checked + .theme-pill-track {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+  }
+  .theme-pill-thumb {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    transition: transform .25s cubic-bezier(.34,1.56,.64,1), background .25s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .8rem;
+  }
+  .theme-pill input:checked + .theme-pill-track .theme-pill-thumb {
+    transform: translateX(36px);
+    background: var(--accent);
   }
 </style>
 </head>
@@ -1335,8 +1449,23 @@
       <!-- ── PÁGINA CATEGORÍAS Y FUENTES ──────────────────── -->
       <div id="page-config" class="page">
         <div class="page-header">
-          <h1>⚙️ Categorías y Fuentes</h1>
+          <h1>⚙️ Configuración</h1>
           <div style="font-size:.85rem;color:var(--text-muted)">Los cambios se guardan en tu Google Sheet</div>
+        </div>
+
+        <!-- Apariencia -->
+        <div class="theme-toggle-card">
+          <div class="theme-toggle-label">
+            Apariencia
+            <span id="theme-label-sub">Modo oscuro activo</span>
+          </div>
+          <label class="theme-pill" title="Cambiar tema">
+            <input type="checkbox" id="theme-toggle-cb" onchange="toggleTheme(this.checked)">
+            <div class="theme-pill-track">
+              <span>🌙</span><span>☀️</span>
+              <div class="theme-pill-thumb" id="theme-pill-thumb">🌙</div>
+            </div>
+          </label>
         </div>
 
         <div class="cfg-grid">
@@ -1511,8 +1640,27 @@ const PALETTE = [
   "#74b9ff","#e17055"
 ];
 
+// ─── TEMA CLARO / OSCURO ──────────────────────────────────────
+function applyTheme(isLight) {
+  document.documentElement.setAttribute("data-theme", isLight ? "light" : "dark");
+  const cb   = document.getElementById("theme-toggle-cb");
+  const sub  = document.getElementById("theme-label-sub");
+  const thumb = document.getElementById("theme-pill-thumb");
+  if (cb)    cb.checked       = isLight;
+  if (sub)   sub.textContent  = isLight ? "Modo claro activo" : "Modo oscuro activo";
+  if (thumb) thumb.textContent = isLight ? "☀️" : "🌙";
+}
+function toggleTheme(isLight) {
+  localStorage.setItem("fp_ama_tema", isLight ? "light" : "dark");
+  applyTheme(isLight);
+}
+
 // ─── INICIALIZACIÓN ───────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", () => {
+  // Restaurar tema guardado
+  const savedTheme = localStorage.getItem("fp_ama_tema");
+  applyTheme(savedTheme === "light");
+
   // Leer config guardada
   const savedUrl  = localStorage.getItem("fp_ama_api_url");
   const savedUser = localStorage.getItem("fp_ama_usuario");
