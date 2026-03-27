@@ -1276,11 +1276,11 @@
         </div>
 
         <!-- KPI strip -->
-        <div class="kpi-grid kpi-grid-4">
+        <div class="kpi-grid">
           <div class="kpi-card">
             <div class="kpi-label">💰 Sueldo del mes</div>
             <div class="kpi-value income" id="pres-kpi-sueldo">$0</div>
-            <div class="kpi-sub">ingresos del mes</div>
+            <div class="kpi-sub">ARS · incluye cambio</div>
           </div>
           <div class="kpi-card">
             <div class="kpi-label">📊 Total presupuestado</div>
@@ -1293,9 +1293,14 @@
             <div class="kpi-sub">50% compartidos · sin "De Daniel"</div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-label">✅ Disponible</div>
+            <div class="kpi-label">✅ Disponible ARS</div>
             <div class="kpi-value" id="pres-kpi-disponible">$0</div>
             <div class="kpi-sub">Sueldo − Gastado efectivo</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">💵 Saldo USD del mes</div>
+            <div class="kpi-value" id="pres-kpi-saldo-usd">U$S 0,00</div>
+            <div class="kpi-sub" id="pres-kpi-saldo-usd-sub">ingresos − gastos USD (incl. cambio)</div>
           </div>
         </div>
 
@@ -2799,12 +2804,21 @@ function renderPresupuesto() {
   // Solo las de Ama (para "Mío" y KPI sueldo)
   const dataMesAma = dataMes.filter(t => t.usuario === USUARIO);
 
-  // Sueldo KPI = ingresos reales de Ama (ARS)
-  const CATS_INGRESO_REAL = ["Sueldo", "Otros Ingresos", "Intereses"];
+  // Sueldo KPI = ingresos reales de Ama en ARS (incluye "Cambio" = pesos recibidos del cambio)
+  const CATS_INGRESO_REAL = ["Sueldo", "Otros Ingresos", "Intereses", "Cambio"];
   const sueldo = dataMesAma
     .filter(t => t.tipo === "Ingreso" && CATS_INGRESO_REAL.includes(t.categoria)
              && (t.moneda || "ARS") === "ARS")
     .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+
+  // Saldo USD = ingresos USD de Ama − gastos USD de Ama (incluye el egreso del cambio)
+  const ingresosUSD = dataMesAma
+    .filter(t => t.tipo === "Ingreso" && !esTransferencia(t) && (t.moneda || "ARS") === "USD")
+    .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+  const gastosUSD = dataMesAma
+    .filter(t => t.tipo === "Gasto" && !esTransferencia(t) && (t.moneda || "ARS") === "USD")
+    .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+  const saldoUSD = ingresosUSD - gastosUSD;
 
   // Gasto efectivo por categoría usando lógica de responsabilidad:
   //   "Mío" Ama           → 100%
@@ -2874,6 +2888,16 @@ function renderPresupuesto() {
   if (subTotal && sueldo > 0) {
     const pctPres = ((totalPres / sueldo) * 100).toFixed(0);
     subTotal.textContent = pctPres + "% del sueldo asignado";
+  }
+
+  // KPI Saldo USD
+  const usdKpi = document.getElementById("pres-kpi-saldo-usd");
+  if (usdKpi) {
+    usdKpi.textContent = fmtMoneda(Math.abs(saldoUSD), "USD");
+    usdKpi.style.color = saldoUSD >= 0 ? "var(--green)" : "var(--red)";
+    const usdSub = document.getElementById("pres-kpi-saldo-usd-sub");
+    if (usdSub) usdSub.textContent =
+      fmtMoneda(ingresosUSD, "USD") + " ingresados · " + fmtMoneda(gastosUSD, "USD") + " gastados";
   }
 
   // Anillo de progreso total
@@ -2955,11 +2979,19 @@ function actualizarKpisPres() {
   });
   const dataMesAma = dataMes.filter(t => t.usuario === USUARIO);
 
-  const CATS_INGRESO_REAL = ["Sueldo", "Otros Ingresos", "Intereses"];
+  const CATS_INGRESO_REAL = ["Sueldo", "Otros Ingresos", "Intereses", "Cambio"];
   const sueldo = dataMesAma
     .filter(t => t.tipo === "Ingreso" && CATS_INGRESO_REAL.includes(t.categoria)
              && (t.moneda || "ARS") === "ARS")
     .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+
+  const ingresosUSD = dataMesAma
+    .filter(t => t.tipo === "Ingreso" && !esTransferencia(t) && (t.moneda || "ARS") === "USD")
+    .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+  const gastosUSD = dataMesAma
+    .filter(t => t.tipo === "Gasto" && !esTransferencia(t) && (t.moneda || "ARS") === "USD")
+    .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+  const saldoUSD = ingresosUSD - gastosUSD;
 
   const gastoPorCat = {};
   categGasto.forEach(cat => {
@@ -3019,6 +3051,16 @@ function actualizarKpisPres() {
   const subTotal = document.getElementById("pres-kpi-total-sub");
   if (subTotal && sueldo > 0) {
     subTotal.textContent = ((totalPres / sueldo) * 100).toFixed(0) + "% del sueldo asignado";
+  }
+
+  // KPI Saldo USD
+  const usdKpi = document.getElementById("pres-kpi-saldo-usd");
+  if (usdKpi) {
+    usdKpi.textContent = fmtMoneda(Math.abs(saldoUSD), "USD");
+    usdKpi.style.color = saldoUSD >= 0 ? "var(--green)" : "var(--red)";
+    const usdSub = document.getElementById("pres-kpi-saldo-usd-sub");
+    if (usdSub) usdSub.textContent =
+      fmtMoneda(ingresosUSD, "USD") + " ingresados · " + fmtMoneda(gastosUSD, "USD") + " gastados";
   }
 }
 
