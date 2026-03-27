@@ -1293,9 +1293,9 @@
             <div class="kpi-sub">50% compartidos · sin "De Daniel"</div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-label">✅ Disponible ARS</div>
+            <div class="kpi-label">✅ Disponible real</div>
             <div class="kpi-value" id="pres-kpi-disponible">$0</div>
-            <div class="kpi-sub">Sueldo − Gastado efectivo</div>
+            <div class="kpi-sub" id="pres-kpi-disponible-sub">Sueldo − Gastado + USD×MEP</div>
           </div>
           <div class="kpi-card">
             <div class="kpi-label">💵 Saldo USD del mes</div>
@@ -1488,6 +1488,21 @@ let chartCat    = null;
 let chartDonut  = null;
 let chartEvol   = null;
 let chartBal    = null;
+let tipoCambioMEP = null; // dólar MEP venta, se actualiza al abrir tab presupuesto
+
+async function fetchTipoCambioMEP() {
+  try {
+    const res = await fetch("https://dolarapi.com/v1/dolares/bolsa");
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    if (data && data.venta) {
+      tipoCambioMEP = data.venta;
+    }
+  } catch (e) {
+    console.warn("No se pudo obtener el tipo de cambio MEP:", e);
+    tipoCambioMEP = null;
+  }
+}
 
 // ─── PALETA DE COLORES ────────────────────────────────────────
 const PALETTE = [
@@ -2668,12 +2683,18 @@ function inicializarSelectoresPresupuesto() {
 async function cargarPresupuesto() {
   const mes  = document.getElementById("pres-mes").value;
   const anio = document.getElementById("pres-anio").value;
+  // Actualizar tipo de cambio MEP en paralelo con el presupuesto guardado
+  const [presRes] = await Promise.allSettled([
+    fetch(`${API_URL}?action=getPresupuesto&mes=${mes}&anio=${anio}`),
+    fetchTipoCambioMEP()
+  ]);
   try {
-    const r = await fetch(`${API_URL}?action=getPresupuesto&mes=${mes}&anio=${anio}`);
-    const j = await r.json();
-    if (j.ok) {
-      presupuestoActual = {};
-      j.data.forEach(d => { presupuestoActual[d.categoria] = d.presupuesto; });
+    if (presRes.status === "fulfilled") {
+      const j = await presRes.value.json();
+      if (j.ok) {
+        presupuestoActual = {};
+        j.data.forEach(d => { presupuestoActual[d.categoria] = d.presupuesto; });
+      }
     }
   } catch(e) { console.warn("Error cargando presupuesto:", e); }
   renderPresupuesto();
@@ -2870,7 +2891,10 @@ function renderPresupuesto() {
   // Totales KPI
   const totalPres   = categGasto.reduce((s, c) => s + (presupuestoActual[c] || 0), 0);
   const totalGasto  = categGasto.reduce((s, c) => s + (gastoPorCat[c] || 0), 0);
-  const disponible  = sueldo - totalGasto;
+  const disponibleARS = sueldo - totalGasto;
+  // Sumar saldo USD convertido a MEP (si tenemos cotización)
+  const usdEnARS    = tipoCambioMEP ? saldoUSD * tipoCambioMEP : 0;
+  const disponible  = disponibleARS + usdEnARS;
 
   // KPIs
   const kpiTotal = document.getElementById("pres-kpi-total");
@@ -2883,6 +2907,17 @@ function renderPresupuesto() {
   const kpiDisp = document.getElementById("pres-kpi-disponible");
   kpiDisp.textContent = fmt(disponible);
   kpiDisp.className = "kpi-value " + (disponible >= 0 ? "balance-pos" : "expense");
+
+  const subDisp = document.getElementById("pres-kpi-disponible-sub");
+  if (subDisp) {
+    if (tipoCambioMEP && saldoUSD !== 0) {
+      subDisp.textContent = `ARS + ${fmtMoneda(Math.abs(saldoUSD),"USD")}×$${fmt(tipoCambioMEP).replace(/[^0-9,.]/g,"")} MEP`;
+    } else if (tipoCambioMEP) {
+      subDisp.textContent = "Sueldo − Gastado (sin saldo USD)";
+    } else {
+      subDisp.textContent = "Sueldo − Gastado (cotización MEP no disponible)";
+    }
+  }
 
   const subTotal = document.getElementById("pres-kpi-total-sub");
   if (subTotal && sueldo > 0) {
@@ -3035,8 +3070,10 @@ function actualizarKpisPres() {
     totalPres += parseFloat(inp.value) || 0;
   });
 
-  const totalGasto = categGasto.reduce((s, c) => s + (gastoPorCat[c] || 0), 0);
-  const disponible = sueldo - totalGasto;
+  const totalGasto    = categGasto.reduce((s, c) => s + (gastoPorCat[c] || 0), 0);
+  const disponibleARS = sueldo - totalGasto;
+  const usdEnARS      = tipoCambioMEP ? saldoUSD * tipoCambioMEP : 0;
+  const disponible    = disponibleARS + usdEnARS;
 
   const kpiTotal = document.getElementById("pres-kpi-total");
   kpiTotal.textContent = fmt(totalPres);
@@ -3047,6 +3084,17 @@ function actualizarKpisPres() {
   const kpiDisp = document.getElementById("pres-kpi-disponible");
   kpiDisp.textContent = fmt(disponible);
   kpiDisp.className = "kpi-value " + (disponible >= 0 ? "balance-pos" : "expense");
+
+  const subDisp = document.getElementById("pres-kpi-disponible-sub");
+  if (subDisp) {
+    if (tipoCambioMEP && saldoUSD !== 0) {
+      subDisp.textContent = `ARS + ${fmtMoneda(Math.abs(saldoUSD),"USD")}×$${fmt(tipoCambioMEP).replace(/[^0-9,.]/g,"")} MEP`;
+    } else if (tipoCambioMEP) {
+      subDisp.textContent = "Sueldo − Gastado (sin saldo USD)";
+    } else {
+      subDisp.textContent = "Sueldo − Gastado (cotización MEP no disponible)";
+    }
+  }
 
   const subTotal = document.getElementById("pres-kpi-total-sub");
   if (subTotal && sueldo > 0) {
