@@ -430,15 +430,62 @@
     width: 110px; font-family: inherit; transition: border-color .15s;
   }
   .pres-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
-  .pres-bar-wrap { display: flex; align-items: center; gap: .5rem; min-width: 140px; }
-  .pres-bar-bg {
-    flex: 1; height: 6px; background: rgba(255,255,255,.07);
-    border-radius: 3px; overflow: hidden;
+
+  /* ─── BARRAS DE PROGRESO (mejoradas) ───────────────────────── */
+  .pres-bar-wrap { display: flex; align-items: center; gap: .55rem; min-width: 150px; }
+  .pres-bar-bg   { flex: 1; height: 8px; background: rgba(255,255,255,.06); border-radius: 99px; overflow: hidden; }
+  @keyframes barFill { from { width: 0 } to { width: var(--bar-w, 0%) } }
+  .pres-bar-fill {
+    height: 100%; border-radius: 99px;
+    width: 0; animation: barFill .75s cubic-bezier(0.34,1.12,0.64,1) .12s both;
   }
-  .pres-bar-fill { height: 100%; border-radius: 3px; transition: width .4s ease, background .3s; }
-  .pres-bar-pct  { font-size: .72rem; color: var(--text-muted); min-width: 36px; text-align: right; font-weight: 500; }
-  .pres-row-zero td { opacity: .35; }
-  .pres-note     { font-size: .76rem; color: var(--text-muted); margin-top: .5rem; }
+  .pres-bar-fill.bar-ok   { background: var(--green); box-shadow: 0 0 8px rgba(52,211,153,.55); }
+  .pres-bar-fill.bar-warn { background: var(--yellow); box-shadow: 0 0 8px rgba(251,191,36,.55); }
+  .pres-bar-fill.bar-over { background: var(--red);   box-shadow: 0 0 8px rgba(248,113,113,.55); }
+  .pres-bar-pct  { font-size: .71rem; color: var(--text-muted); min-width: 38px; text-align: right; font-weight: 600; }
+
+  /* ─── FILAS DE ESTADO ───────────────────────────────────────── */
+  .pres-row-zero td { opacity: .32; }
+  .pres-row-over td:first-child  { border-left: 3px solid var(--red);    padding-left: .75rem; }
+  .pres-row-warn td:first-child  { border-left: 3px solid var(--yellow); padding-left: .75rem; }
+  .pres-row-ok   td:first-child  { border-left: 3px solid var(--green);  padding-left: .75rem; }
+  .pres-row-over { background: rgba(248,113,113,.04); }
+  .pres-row-warn { background: rgba(251,191,36,.03); }
+  .pres-status-dot { display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:.5rem;vertical-align:middle;flex-shrink:0; }
+
+  /* ─── ANILLO DE PROGRESO TOTAL ──────────────────────────────── */
+  .pres-ring-card {
+    display: flex; align-items: center; gap: 2.5rem; flex-wrap: wrap;
+    background: rgba(12,12,34,0.6);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius); padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow), inset 0 1px 0 var(--glass);
+    animation: fadeUp .4s .1s ease both;
+  }
+  .pres-ring-stats { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: .75rem; }
+  .pres-ring-stat  { display: flex; align-items: center; justify-content: space-between; font-size: .86rem; }
+  .pres-ring-stat-label { color: var(--text-muted); display: flex; align-items: center; gap: .45rem; }
+  .pres-ring-stat-val   { font-weight: 700; }
+  .pres-ring-alert {
+    display: flex; align-items: center; gap: .5rem;
+    background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.25);
+    border-radius: 8px; padding: .45rem .8rem; font-size: .8rem; color: var(--red); font-weight: 600;
+  }
+  .pres-ring-alert-ok {
+    display: flex; align-items: center; gap: .5rem;
+    background: rgba(52,211,153,.08); border: 1px solid rgba(52,211,153,.2);
+    border-radius: 8px; padding: .45rem .8rem; font-size: .8rem; color: var(--green); font-weight: 600;
+  }
+
+  /* ─── TABLA FOOTER ───────────────────────────────────────────── */
+  .pres-tfoot-row td {
+    padding: .75rem 1rem !important; font-weight: 700; font-size: .9rem;
+    background: rgba(255,255,255,.025); border-top: 1px solid var(--border2) !important;
+  }
+
+  .pres-note { font-size: .76rem; color: var(--text-muted); margin-top: .5rem; }
 
   .empty-state {
     text-align: center; padding: 3rem; color: var(--text-muted); font-size: .9rem;
@@ -1252,6 +1299,9 @@
           </div>
         </div>
 
+        <!-- Anillo de progreso total -->
+        <div id="pres-ring-container"></div>
+
         <!-- Tabla presupuesto vs ejecución -->
         <div class="chart-card" style="padding:0;overflow:hidden">
           <table class="data-table">
@@ -1267,6 +1317,7 @@
             <tbody id="pres-tbody">
               <tr><td colspan="5"><div class="loading"><div class="spinner"></div> Cargando...</div></td></tr>
             </tbody>
+            <tfoot id="pres-tfoot"></tfoot>
           </table>
         </div>
 
@@ -2657,6 +2708,72 @@ async function guardarPresupuesto() {
 }
 
 // Calcula el monto efectivo de un gasto según responsabilidad
+// ─── ANILLO DE PROGRESO DEL PRESUPUESTO ───────────────────────
+function renderPresupuestoRing(totalGasto, sueldo, totalPres) {
+  const el = document.getElementById("pres-ring-container");
+  if (!el) return;
+  if (sueldo === 0 && totalPres === 0) { el.innerHTML = ""; return; }
+
+  const R    = 68;
+  const circ = +(2 * Math.PI * R).toFixed(2);
+  const off  = +(circ / 4).toFixed(2);
+
+  const pctG = sueldo > 0 ? Math.min(totalGasto / sueldo, 1) : 0;
+  const pctP = sueldo > 0 ? Math.min(totalPres  / sueldo, 1) : 0;
+
+  const ringColor = pctG >= 1 ? "var(--red)" : pctG >= 0.8 ? "var(--yellow)" : "var(--green)";
+  const hexColor  = pctG >= 1 ? "#f87171"    : pctG >= 0.8 ? "#fbbf24"       : "#34d399";
+
+  const dG = +(pctG * circ).toFixed(2);
+  const dP = +(pctP * circ).toFixed(2);
+
+  const pctGastStr = (pctG * 100).toFixed(0) + "%";
+  const disponible = sueldo - totalGasto;
+  const alertHtml  = disponible < 0
+    ? `<div class="pres-ring-alert">⚠️ Gastado ${fmt(Math.abs(disponible))} más del sueldo</div>`
+    : `<div class="pres-ring-alert-ok">✅ Margen disponible: ${fmt(disponible)}</div>`;
+
+  el.innerHTML = `
+    <div class="pres-ring-card">
+      <svg width="160" height="160" viewBox="0 0 160 160" style="flex-shrink:0">
+        <defs>
+          <filter id="ring-glow">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <circle cx="80" cy="80" r="${R}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="13"/>
+        <circle cx="80" cy="80" r="${R}" fill="none" stroke="${hexColor}" stroke-opacity=".2"
+          stroke-width="13" stroke-dasharray="${dP} ${circ-dP}"
+          stroke-dashoffset="${off}" stroke-linecap="round"/>
+        <circle cx="80" cy="80" r="${R}" fill="none" stroke="${hexColor}"
+          stroke-width="13" stroke-dasharray="${dG} ${circ-dG}"
+          stroke-dashoffset="${off}" stroke-linecap="round"
+          filter="url(#ring-glow)"
+          style="transition:stroke-dasharray .8s cubic-bezier(0.34,1.1,0.64,1)"/>
+        <text x="80" y="74" text-anchor="middle" fill="#e4e4f0"
+              font-size="22" font-weight="800" font-family="Inter,sans-serif">${pctGastStr}</text>
+        <text x="80" y="93" text-anchor="middle" fill="#6060a0"
+              font-size="11" font-family="Inter,sans-serif">del sueldo</text>
+      </svg>
+      <div class="pres-ring-stats">
+        <div class="pres-ring-stat">
+          <span class="pres-ring-stat-label"><span class="pres-status-dot" style="background:var(--green)"></span>Sueldo</span>
+          <span class="pres-ring-stat-val" style="color:var(--green)">${fmt(sueldo)}</span>
+        </div>
+        <div class="pres-ring-stat">
+          <span class="pres-ring-stat-label"><span class="pres-status-dot" style="background:var(--accent)"></span>Presupuestado</span>
+          <span class="pres-ring-stat-val" style="color:var(--accent)">${fmt(totalPres)} <small style="color:var(--text-muted);font-weight:400">(${(pctP*100).toFixed(0)}%)</small></span>
+        </div>
+        <div class="pres-ring-stat">
+          <span class="pres-ring-stat-label"><span class="pres-status-dot" style="background:${ringColor}"></span>Gastado efectivo</span>
+          <span class="pres-ring-stat-val" style="color:${ringColor}">${fmt(totalGasto)} <small style="color:var(--text-muted);font-weight:400">(${pctGastStr})</small></span>
+        </div>
+        ${alertHtml}
+      </div>
+    </div>`;
+}
+
 function esTransferencia(t) {
   return CATS_TRANSFERENCIA.includes(t.categoria);
 }
@@ -2759,6 +2876,9 @@ function renderPresupuesto() {
     subTotal.textContent = pctPres + "% del sueldo asignado";
   }
 
+  // Anillo de progreso total
+  renderPresupuestoRing(totalGasto, sueldo, totalPres);
+
   // Tabla
   const tbody = document.getElementById("pres-tbody");
   tbody.innerHTML = categGasto.map(cat => {
@@ -2767,33 +2887,37 @@ function renderPresupuesto() {
     const rest  = pres - gasto;
     const pct   = pres > 0 ? (gasto / pres) * 100 : 0;
 
-    // Clases y colores
-    const isZero = pres === 0 && gasto === 0;
-    const rowCls = isZero ? "pres-row-zero" : "";
+    const isZero  = pres === 0 && gasto === 0;
+    const isOver  = pres > 0 && gasto > pres;
+    const isWarn  = !isOver && pres > 0 && pct >= 80;
+    const isOk    = pres > 0 && pct < 80;
+    const rowCls  = isZero ? "pres-row-zero" : isOver ? "pres-row-over" : isWarn ? "pres-row-warn" : isOk ? "pres-row-ok" : "";
 
-    const barColor = pct >= 100 ? "var(--red)" : pct >= 80 ? "var(--yellow)" : "var(--green)";
-    const restColor = pres > 0 && gasto > pres ? "var(--red)" :
-                      pres > 0 && pct >= 80    ? "var(--yellow)" : "var(--green)";
+    const dotColor  = isOver ? "var(--red)" : isWarn ? "var(--yellow)" : pres > 0 ? "var(--green)" : "var(--border2)";
+    const barClass  = isOver ? "bar-over" : isWarn ? "bar-warn" : "bar-ok";
+    const restColor = isOver ? "var(--red)" : isWarn ? "var(--yellow)" : "var(--green)";
 
     const gastoStr = gasto > 0
-      ? `<span style="color:var(--red);font-weight:600">${fmt(gasto)}</span>`
+      ? `<span style="color:${isOver ? "var(--red)" : "var(--text)"};font-weight:600">${fmt(gasto)}</span>`
       : `<span style="color:var(--text-muted)">—</span>`;
 
     const restStr = pres > 0
-      ? `<span style="color:${restColor};font-weight:600">${fmt(rest)}</span>`
+      ? `<span style="color:${restColor};font-weight:600">${rest < 0 ? "−"+fmt(Math.abs(rest)) : fmt(rest)}</span>`
       : `<span style="color:var(--text-muted)">—</span>`;
 
     const barHtml = pres > 0
       ? `<div class="pres-bar-wrap">
-           <div class="pres-bar-bg"><div class="pres-bar-fill" style="width:${Math.min(pct,100).toFixed(1)}%;background:${barColor}"></div></div>
-           <span class="pres-bar-pct">${pct.toFixed(0)}%</span>
+           <div class="pres-bar-bg">
+             <div class="pres-bar-fill ${barClass}" style="--bar-w:${Math.min(pct,100).toFixed(1)}%"></div>
+           </div>
+           <span class="pres-bar-pct" style="color:${dotColor}">${pct.toFixed(0)}%</span>
          </div>`
       : gasto > 0
         ? `<span style="color:var(--text-muted);font-size:.78rem">Sin presupuesto</span>`
         : "";
 
     return `<tr class="${rowCls}">
-      <td>${cat}</td>
+      <td><span class="pres-status-dot" style="background:${dotColor}"></span>${cat}</td>
       <td style="text-align:right">
         <input type="number" class="pres-input" data-cat="${cat}"
                value="${pres > 0 ? pres : ''}" placeholder="—" min="0" step="100"
@@ -2804,6 +2928,20 @@ function renderPresupuesto() {
       <td>${barHtml}</td>
     </tr>`;
   }).join("");
+
+  // Footer de totales
+  const tfoot = document.getElementById("pres-tfoot");
+  if (tfoot) {
+    const totalRest = totalPres - totalGasto;
+    const totalPct  = totalPres > 0 ? (totalGasto / totalPres * 100).toFixed(0) : 0;
+    tfoot.innerHTML = `<tr class="pres-tfoot-row">
+      <td><strong>TOTAL</strong></td>
+      <td style="text-align:right"><strong>${fmt(totalPres)}</strong></td>
+      <td style="text-align:right"><strong style="color:var(--red)">${fmt(totalGasto)}</strong></td>
+      <td style="text-align:right"><strong style="color:${totalRest>=0?"var(--green)":"var(--red)"}">${totalRest<0?"−":""}${fmt(Math.abs(totalRest))}</strong></td>
+      <td><strong style="color:var(--text-muted)">${totalPct}% ejecutado</strong></td>
+    </tr>`;
+  }
 }
 
 // Actualiza solo los KPIs al cambiar un input (sin re-renderizar la tabla)
