@@ -638,6 +638,51 @@
   @keyframes fadeUp  { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
   .page.active { animation: fadeIn .28s ease both; }
+  /* ─── SPARKLINES ────────────────────────────────────────────── */
+  .kpi-spark { margin-top: .6rem; height: 34px; opacity: .75; }
+  .kpi-spark svg { display: block; }
+
+  /* ─── BANNER "DANIEL TE DEBE" ──────────────────────────────── */
+  .ama-debe-card {
+    display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+    background: rgba(240,111,160,0.07);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(240,111,160,0.28);
+    border-radius: var(--radius); padding: 1.25rem 1.8rem;
+    margin-bottom: 1.8rem;
+    box-shadow: 0 0 40px rgba(240,111,160,0.08), inset 0 1px 0 rgba(255,255,255,0.05);
+    animation: fadeUp .45s .28s ease both;
+  }
+  .ama-icon {
+    font-size: 2.6rem; line-height: 1; flex-shrink: 0;
+    filter: drop-shadow(0 0 14px rgba(240,111,160,0.65));
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+  @keyframes pulse-glow {
+    0%, 100% { filter: drop-shadow(0 0 10px rgba(240,111,160,0.55)); }
+    50%       { filter: drop-shadow(0 0 22px rgba(240,111,160,0.9)); }
+  }
+  .ama-info { flex: 1; min-width: 140px; }
+  .ama-label { font-size: .68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; margin-bottom: .2rem; }
+  .ama-value { font-size: 1.9rem; font-weight: 800; color: var(--accent2); letter-spacing: -.03em; }
+  .ama-sub   { font-size: .74rem; color: var(--text-muted); margin-top: .15rem; }
+  .ama-cats  { display: flex; gap: .45rem; flex-wrap: wrap; align-items: center; }
+  .ama-chip  {
+    background: rgba(240,111,160,0.13); border: 1px solid rgba(240,111,160,0.22);
+    border-radius: 20px; padding: .22rem .7rem; font-size: .72rem;
+    color: var(--accent2); font-weight: 600; white-space: nowrap;
+  }
+  .ama-chip-label { font-size: .65rem; color: var(--text-muted); margin-right: .25rem; }
+
+  /* ─── DONUT CENTER TEXT ──────────────────────────────────────── */
+  .donut-wrap { position: relative; height: 250px; }
+  .donut-center {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -58%);
+    text-align: center; pointer-events: none;
+  }
+  .donut-center-val   { font-size: 1.25rem; font-weight: 800; letter-spacing: -.025em; }
+  .donut-center-label { font-size: .65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .07em; margin-top: .1rem; }
 
   /* ─── SCROLLBAR ─────────────────────────────────────────── */
   ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -880,27 +925,37 @@
             <div class="kpi-label">Ingresos</div>
             <div class="kpi-value income" id="kpi-ingresos">$0</div>
             <div class="kpi-sub" id="kpi-ingresos-sub">—</div>
+            <div class="kpi-spark" id="spark-ingresos"></div>
           </div>
           <div class="kpi-card">
             <div class="kpi-label">Gastos</div>
             <div class="kpi-value expense" id="kpi-gastos">$0</div>
             <div class="kpi-sub" id="kpi-gastos-sub">—</div>
+            <div class="kpi-spark" id="spark-gastos"></div>
           </div>
           <div class="kpi-card">
             <div class="kpi-label">Balance</div>
             <div class="kpi-value balance-pos" id="kpi-balance">$0</div>
             <div class="kpi-sub" id="kpi-balance-sub">—</div>
+            <div class="kpi-spark" id="spark-balance"></div>
           </div>
           <div class="kpi-card">
             <div class="kpi-label">Ahorro</div>
             <div class="kpi-value" id="kpi-ahorro" style="color:var(--yellow)">0%</div>
             <div class="kpi-sub">del ingreso mensual</div>
+            <div class="kpi-spark" id="spark-ahorro"></div>
           </div>
-          <div class="kpi-card" style="border-color:var(--accent2)">
-            <div class="kpi-label">💳 Daniel te debe</div>
-            <div class="kpi-value" id="kpi-ama-debe" style="color:var(--accent2)">$0</div>
-            <div class="kpi-sub" id="kpi-ama-debe-sub">gastos de Daniel pagados por vos</div>
+        </div>
+
+        <!-- Banner "Daniel te debe" -->
+        <div class="ama-debe-card">
+          <div class="ama-icon">💳</div>
+          <div class="ama-info">
+            <div class="ama-label">Daniel te debe (acumulado)</div>
+            <div class="ama-value" id="kpi-ama-debe">$0</div>
+            <div class="ama-sub" id="kpi-ama-debe-sub">—</div>
           </div>
+          <div class="ama-cats" id="ama-debe-cats"></div>
         </div>
 
         <!-- Gráfico categorías -->
@@ -911,7 +966,13 @@
           </div>
           <div class="chart-card">
             <div class="chart-title">Ingresos vs Gastos</div>
-            <div class="chart-wrap"><canvas id="chart-donut"></canvas></div>
+            <div class="donut-wrap">
+              <canvas id="chart-donut"></canvas>
+              <div class="donut-center">
+                <div class="donut-center-val" id="donut-center-val" style="color:var(--accent)">$0</div>
+                <div class="donut-center-label">Balance</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1654,9 +1715,26 @@ async function cargarResumenMes() {
       amaDebeTotalMes > 0 ? `${allTransac.filter(t=>t.tipo==="Gasto"&&(t.responsabilidad||"Mío")==="De Daniel").length} gastos pendientes de reintegro` : "Sin gastos pendientes ✅";
   }
 
-  renderCatChart(sortedCatsARS);          // gráfico de barras muestra ARS
-  renderDonutChart(ingresos, gastos);
+  renderCatChart(sortedCatsARS);
+  renderDonutChart(ingresos, gastos, balance);
   renderTopGastos(sortedCatsARS, sortedCatsUSD, datos);
+
+  // Sparklines — últimos 6 meses
+  renderSparklines(parseInt(mes), parseInt(anio));
+
+  // Banner "Daniel te debe" — chips por categoría
+  const danielDebeCats = {};
+  allTransac.filter(t => t.tipo === "Gasto" && (t.responsabilidad || "Mío") === "De Daniel")
+    .forEach(t => { danielDebeCats[t.categoria] = (danielDebeCats[t.categoria] || 0) + Math.abs(Number(t.monto)); });
+  const topCats = Object.entries(danielDebeCats).sort((a,b) => b[1]-a[1]).slice(0, 4);
+  const catsEl  = document.getElementById("ama-debe-cats");
+  if (catsEl) {
+    catsEl.innerHTML = topCats.length
+      ? topCats.map(([cat, val]) =>
+          `<span class="ama-chip"><span class="ama-chip-label">${cat}</span>${fmt(val)}</span>`
+        ).join("")
+      : "";
+  }
 }
 
 // ─── GRÁFICO BARRAS CATEGORÍAS ────────────────────────────────
@@ -1693,7 +1771,7 @@ function renderCatChart(sortedCats) {
 }
 
 // ─── GRÁFICO DONUT ────────────────────────────────────────────
-function renderDonutChart(ingresos, gastos) {
+function renderDonutChart(ingresos, gastos, balance) {
   const ctx = document.getElementById("chart-donut");
   if (chartDonut) chartDonut.destroy();
   chartDonut = new Chart(ctx, {
@@ -1702,20 +1780,31 @@ function renderDonutChart(ingresos, gastos) {
       labels: ["Ingresos","Gastos"],
       datasets: [{
         data: [ingresos, gastos],
-        backgroundColor: ["rgba(52,211,153,.8)","rgba(248,113,113,.8)"],
-        borderColor: ["#34d399","#f87171"],
+        backgroundColor: ["rgba(52,211,153,.75)","rgba(248,113,113,.75)"],
+        borderColor: ["rgba(52,211,153,.9)","rgba(248,113,113,.9)"],
         borderWidth: 2,
-        hoverOffset: 6
+        hoverOffset: 10,
+        hoverBackgroundColor: ["rgba(52,211,153,1)","rgba(248,113,113,1)"],
       }]
     },
     options: {
-      responsive: true, maintainAspectRatio: false, cutout: "68%",
+      responsive: true, maintainAspectRatio: false, cutout: "70%",
       plugins: {
-        legend: { position: "bottom", labels: { color: "#8888aa", padding: 16, font:{ size:12 } } },
-        tooltip: { callbacks: { label: ctx => " " + fmt(ctx.raw) } }
+        legend: { position: "bottom", labels: { color: "#8888aa", padding: 16, font:{ size:12 }, usePointStyle: true } },
+        tooltip: { callbacks: {
+          label: ctx => " " + fmt(ctx.raw),
+          afterLabel: ctx => ctx.dataIndex === 0
+            ? ` Ahorro: ${ingresos > 0 ? ((balance/ingresos)*100).toFixed(1) : 0}%`
+            : ` Balance: ${fmt(balance)}`
+        }}
       }
     }
   });
+  const centerEl = document.getElementById("donut-center-val");
+  if (centerEl) {
+    centerEl.textContent = fmt(Math.abs(balance));
+    centerEl.style.color = balance >= 0 ? "var(--accent)" : "var(--red)";
+  }
 }
 
 // ─── TOP GASTOS ───────────────────────────────────────────────
@@ -3076,6 +3165,78 @@ function showToast(msg, tipo) {
   t.textContent = msg;
   t.className = `toast toast-${tipo} show`;
   setTimeout(() => { t.className = "toast"; }, 3000);
+}
+
+// ─── SPARKLINES ───────────────────────────────────────────────
+function renderSparklineSVG(containerId, values, color) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const W = 120, H = 34;
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = max - min || 1;
+  const pad = 3;
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * (W - pad * 2) + pad;
+    const y = H - pad - ((v - min) / range) * (H - pad * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const ptsStr  = pts.join(" ");
+  const polyPts = `${pad},${H} ${ptsStr} ${(W-pad).toFixed(1)},${H}`;
+  const uid = containerId.replace(/[^a-z]/gi, "");
+  el.innerHTML = `
+    <svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="sg-${uid}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${color}" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <polygon points="${polyPts}" fill="url(#sg-${uid})"/>
+      <polyline points="${ptsStr}" fill="none" stroke="${color}" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${pts[pts.length-1].split(',')[0]}" cy="${pts[pts.length-1].split(',')[1]}"
+              r="2.5" fill="${color}"/>
+    </svg>`;
+}
+
+function renderSparklines(curMes, curAnio) {
+  const NMONTHS = 6;
+  const CATS_ING_ARS = ["Sueldo", "Otros Ingresos", "Intereses"];
+  const seriesIng = [], seriesGas = [], seriesBal = [], seriesAho = [];
+
+  for (let offset = -(NMONTHS - 1); offset <= 0; offset++) {
+    const d    = new Date(curAnio, curMes - 1 + offset, 1);
+    const m    = d.getMonth() + 1;
+    const y    = d.getFullYear();
+    const all  = allTransac.filter(t => {
+      const td = new Date(t.fecha + "T12:00:00");
+      return (td.getMonth() + 1) === m && td.getFullYear() === y;
+    });
+    const mine = all.filter(t => (t.usuario || "Ama") === USUARIO);
+    const ing  = mine.filter(t => t.tipo === "Ingreso" && !esTransferencia(t)
+                   && (CATS_ING_ARS.includes(t.categoria) || t.categoria === "Sueldo USD")
+                   && (t.moneda || "ARS") === "ARS")
+                 .reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+    const g = (arr, tipo, resp) => arr.filter(t =>
+      !esTransferencia(t) && t.tipo === tipo
+      && (resp === "Mío" ? (t.responsabilidad || "Mío") === "Mío" : t.responsabilidad === resp)
+      && (t.moneda || "ARS") === "ARS"
+    ).reduce((s, t) => s + Math.abs(Number(t.monto)), 0);
+    const gas = Math.max(0, g(mine, "Gasto", "Mío")        - g(mine, "Ingreso", "Mío"))
+              + Math.max(0, g(all,  "Gasto", "Compartido") - g(all,  "Ingreso", "Compartido")) * 0.5
+              + Math.max(0, g(all,  "Gasto", "De Ama")     - g(all,  "Ingreso", "De Ama"));
+    const bal  = ing - gas;
+    const aho  = ing > 0 ? (bal / ing) * 100 : 0;
+    seriesIng.push(ing);
+    seriesGas.push(gas);
+    seriesBal.push(bal);
+    seriesAho.push(aho);
+  }
+
+  renderSparklineSVG("spark-ingresos", seriesIng, "#34d399");
+  renderSparklineSVG("spark-gastos",   seriesGas, "#f87171");
+  renderSparklineSVG("spark-balance",  seriesBal, "#7c6eff");
+  renderSparklineSVG("spark-ahorro",   seriesAho, "#fbbf24");
 }
 
 // ─── ANIMACIÓN KPI ────────────────────────────────────────────
