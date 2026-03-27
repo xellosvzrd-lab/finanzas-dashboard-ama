@@ -42,11 +42,18 @@
 
     --radius: 14px;
     --shadow: 0 8px 40px rgba(0,0,0,0.55);
+    --glass:  rgba(255,255,255,0.035);
+    --glass-border: rgba(255,255,255,0.07);
   }
 
   body {
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
     background: var(--bg);
+    background-image:
+      radial-gradient(ellipse 90% 55% at 12% -8%, rgba(124,110,255,0.22) 0%, transparent 55%),
+      radial-gradient(ellipse 65% 45% at 92% 105%, rgba(240,111,160,0.13) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 40% at 50% 50%, rgba(52,211,153,0.04) 0%, transparent 60%);
+    background-attachment: fixed;
     color: var(--text);
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
@@ -104,17 +111,19 @@
 
   .sidebar {
     width: 230px;
-    background: var(--bg2);
-    border-right: 1px solid var(--border);
+    background: rgba(7,7,20,0.92);
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    border-right: 1px solid rgba(255,255,255,0.055);
     display: flex; flex-direction: column;
     padding: 0 0 1.5rem; position: fixed;
     height: 100vh; z-index: 10; overflow-y: auto;
   }
   .sidebar-logo {
     padding: 1.4rem 1.5rem 1.2rem;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid rgba(255,255,255,0.055);
     margin-bottom: .6rem;
-    background: linear-gradient(160deg, rgba(124,110,255,0.09) 0%, rgba(240,111,160,0.04) 100%);
+    background: linear-gradient(160deg, rgba(124,110,255,0.16) 0%, rgba(240,111,160,0.07) 100%);
   }
   .sidebar-logo h2 {
     font-size: 1.05rem; font-weight: 800; letter-spacing: -.02em;
@@ -142,9 +151,10 @@
   .nav-item:hover { background: var(--accent-dim); color: var(--text); border-left-color: rgba(124,110,255,0.35); }
   .nav-item.active {
     color: #fff; border-left-color: var(--accent);
-    background: linear-gradient(90deg, var(--accent-dim) 0%, transparent 100%);
+    background: linear-gradient(90deg, rgba(124,110,255,0.18) 0%, transparent 100%);
+    box-shadow: inset 0 0 24px rgba(124,110,255,0.06);
   }
-  .nav-item.active .nav-icon { filter: drop-shadow(0 0 5px var(--accent)); }
+  .nav-item.active .nav-icon { filter: drop-shadow(0 0 6px var(--accent)); }
   .nav-icon { font-size: 1rem; width: 1.25rem; text-align: center; }
 
   .sidebar-bottom { margin-top: auto; padding: 1rem 1.5rem 0; }
@@ -192,23 +202,36 @@
     gap: 1rem; margin-bottom: 1.8rem;
   }
   .kpi-card {
-    background: var(--card); border: 1px solid var(--border);
+    background: rgba(12,12,34,0.65);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius); padding: 1.3rem 1.5rem;
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow), inset 0 1px 0 var(--glass);
     position: relative; overflow: hidden;
-    transition: border-color .2s, transform .18s;
+    transition: border-color .25s, transform .2s, box-shadow .25s;
+    animation: fadeUp .45s ease both;
   }
+  .kpi-card:nth-child(1) { animation-delay: .04s; }
+  .kpi-card:nth-child(2) { animation-delay: .09s; }
+  .kpi-card:nth-child(3) { animation-delay: .14s; }
+  .kpi-card:nth-child(4) { animation-delay: .19s; }
+  .kpi-card:nth-child(5) { animation-delay: .24s; }
   .kpi-card::before {
     content: ''; position: absolute;
-    top: 0; left: 0; right: 0; height: 2px;
-    background: var(--border2); transition: background .2s;
+    top: 0; left: 0; right: 0; height: 3px;
+    background: var(--border2); transition: background .25s, box-shadow .25s;
   }
-  .kpi-card:hover { transform: translateY(-2px); border-color: var(--border2); }
+  .kpi-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(255,255,255,0.12);
+    box-shadow: var(--shadow), inset 0 1px 0 var(--glass), 0 0 36px rgba(124,110,255,0.1);
+  }
   /* Acento de color superior según tipo de KPI */
-  .kpi-card:has(.income)::before      { background: linear-gradient(90deg, var(--green), transparent 70%); }
-  .kpi-card:has(.expense)::before     { background: linear-gradient(90deg, var(--red), transparent 70%); }
-  .kpi-card:has(.balance-pos)::before { background: linear-gradient(90deg, var(--accent), transparent 70%); }
-  .kpi-card:has(.balance-neg)::before { background: linear-gradient(90deg, var(--red), transparent 70%); }
+  .kpi-card:has(.income)::before      { background: linear-gradient(90deg, var(--green), transparent 65%); box-shadow: 0 0 12px rgba(52,211,153,0.5); }
+  .kpi-card:has(.expense)::before     { background: linear-gradient(90deg, var(--red), transparent 65%);   box-shadow: 0 0 12px rgba(248,113,113,0.5); }
+  .kpi-card:has(.balance-pos)::before { background: linear-gradient(90deg, var(--accent), transparent 65%); box-shadow: 0 0 12px rgba(124,110,255,0.5); }
+  .kpi-card:has(.balance-neg)::before { background: linear-gradient(90deg, var(--red), transparent 65%);   box-shadow: 0 0 12px rgba(248,113,113,0.5); }
 
   .kpi-label { font-size: .7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .07em; margin-bottom: .5rem; font-weight: 600; }
   .kpi-value { font-size: 1.65rem; font-weight: 800; letter-spacing: -.025em; }
@@ -230,11 +253,18 @@
   @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
 
   .chart-card {
-    background: var(--card); border: 1px solid var(--border);
+    background: rgba(12,12,34,0.65);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius); padding: 1.4rem;
-    box-shadow: var(--shadow); transition: border-color .2s;
+    box-shadow: var(--shadow), inset 0 1px 0 var(--glass);
+    transition: border-color .25s, box-shadow .25s;
   }
-  .chart-card:hover { border-color: var(--border2); }
+  .chart-card:hover {
+    border-color: rgba(255,255,255,0.11);
+    box-shadow: var(--shadow), inset 0 1px 0 var(--glass), 0 0 28px rgba(124,110,255,0.08);
+  }
   .chart-card.full { grid-column: 1 / -1; }
   .chart-title {
     font-size: .76rem; font-weight: 700; margin-bottom: 1rem;
@@ -326,12 +356,14 @@
   @media (max-width: 900px) { .comp-grid { grid-template-columns: 1fr; } }
 
   .comp-balance-card {
-    background: var(--card);
-    border: 1px solid var(--accent2);
+    background: rgba(12,12,34,0.65);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(240,111,160,0.28);
     border-radius: var(--radius);
     padding: 1.4rem 1.8rem;
     margin-bottom: 1.25rem;
-    box-shadow: var(--shadow), 0 0 28px var(--accent2-dim);
+    box-shadow: var(--shadow), 0 0 40px rgba(240,111,160,0.1), inset 0 1px 0 rgba(255,255,255,0.05);
     display: flex; align-items: center; gap: 2rem; flex-wrap: wrap;
   }
   .comp-balance-label { font-size: .7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .07em; font-weight: 600; }
@@ -495,9 +527,12 @@
 
   /* ─── FORMULARIO NUEVA TRANSACCIÓN ─────────────────────── */
   .form-card {
-    background: var(--card); border: 1px solid var(--border);
+    background: rgba(12,12,34,0.7);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius); padding: 2rem; max-width: 600px;
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow), inset 0 1px 0 var(--glass);
   }
   .form-card h2 { font-size: 1.1rem; margin-bottom: 1.5rem; font-weight: 700; }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
@@ -599,7 +634,10 @@
     border-top-color: var(--accent); border-radius: 50%;
     animation: spin .65s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin    { to { transform: rotate(360deg); } }
+  @keyframes fadeUp  { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+  .page.active { animation: fadeIn .28s ease both; }
 
   /* ─── SCROLLBAR ─────────────────────────────────────────── */
   ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -1578,14 +1616,14 @@ async function cargarResumenMes() {
   const balance  = ingresos - gastos;
   const ahorro   = ingresos > 0 ? ((balance / ingresos) * 100).toFixed(1) : 0;
 
-  document.getElementById("kpi-ingresos").textContent = fmt(ingresos);
-  document.getElementById("kpi-gastos").textContent   = fmt(gastos);
+  animateKPI(document.getElementById("kpi-ingresos"), ingresos, fmt);
+  animateKPI(document.getElementById("kpi-gastos"),   gastos,   fmt);
 
   const balEl = document.getElementById("kpi-balance");
-  balEl.textContent = fmt(balance);
-  balEl.className   = "kpi-value " + (balance >= 0 ? "balance-pos" : "balance-neg");
+  balEl.className = "kpi-value " + (balance >= 0 ? "balance-pos" : "balance-neg");
+  animateKPI(balEl, Math.abs(balance), v => (balance < 0 ? "-" : "") + fmt(v));
 
-  document.getElementById("kpi-ahorro").textContent = ahorro + "%";
+  animatePct(document.getElementById("kpi-ahorro"), parseFloat(ahorro));
 
   const ingTxCount = datos.filter(t => t.tipo === "Ingreso" && !esTransferencia(t)
     && (CATS_INGRESO_ARS.includes(t.categoria) || CATS_INGRESO_USD.includes(t.categoria))).length;
@@ -3038,6 +3076,30 @@ function showToast(msg, tipo) {
   t.textContent = msg;
   t.className = `toast toast-${tipo} show`;
   setTimeout(() => { t.className = "toast"; }, 3000);
+}
+
+// ─── ANIMACIÓN KPI ────────────────────────────────────────────
+function animateKPI(el, toValue, fmtFn, duration = 680) {
+  const start = performance.now();
+  function step(now) {
+    const t    = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    el.textContent = fmtFn(Math.round((toValue) * ease));
+    if (t < 1) requestAnimationFrame(step);
+    else        el.textContent = fmtFn(toValue);
+  }
+  requestAnimationFrame(step);
+}
+function animatePct(el, toValue, duration = 680) {
+  const start = performance.now();
+  function step(now) {
+    const t    = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    el.textContent = (toValue * ease).toFixed(1) + "%";
+    if (t < 1) requestAnimationFrame(step);
+    else        el.textContent = toValue + "%";
+  }
+  requestAnimationFrame(step);
 }
 
 // ─── FORMATEO ─────────────────────────────────────────────────
