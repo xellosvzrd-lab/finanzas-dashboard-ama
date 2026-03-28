@@ -982,6 +982,83 @@
     transform: translateX(36px);
     background: var(--accent);
   }
+
+  /* ─── MODAL EDITAR TRANSACCIÓN ───────────────────────────── */
+  .edit-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    animation: fadeIn .18s ease;
+  }
+  .edit-overlay.open { display: flex; }
+
+  .edit-modal {
+    background: var(--glass-bg);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    width: 100%;
+    max-width: 480px;
+    max-height: 92vh;
+    overflow-y: auto;
+    animation: fadeUp .22s ease;
+  }
+  .edit-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.2rem 1.5rem .9rem;
+    border-bottom: 1px solid var(--glass-border);
+  }
+  .edit-modal-header h3 { font-size: 1rem; font-weight: 700; margin: 0; }
+  .edit-close-btn {
+    background: none; border: none; color: var(--text-muted);
+    font-size: 1.3rem; cursor: pointer; padding: .2rem .5rem;
+    border-radius: 6px; transition: background .15s, color .15s;
+    line-height: 1;
+  }
+  .edit-close-btn:hover { background: var(--red-dim); color: var(--red); }
+  .edit-modal-body  { padding: 1.2rem 1.5rem; display: flex; flex-direction: column; gap: .9rem; }
+  .edit-modal-footer { padding: .9rem 1.5rem 1.3rem; display: flex; gap: .6rem; justify-content: flex-end; border-top: 1px solid var(--glass-border); }
+
+  .edit-field label {
+    display: block; font-size: .71rem; font-weight: 600;
+    color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: .06em; margin-bottom: .38rem;
+  }
+  .edit-field input,
+  .edit-field select,
+  .edit-field textarea {
+    width: 100%; padding: .62rem .85rem;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 9px; color: var(--text); font-size: .9rem;
+    font-family: inherit; transition: border-color .15s, box-shadow .15s;
+    box-sizing: border-box;
+  }
+  .edit-field input:focus,
+  .edit-field select:focus,
+  .edit-field textarea:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+  .edit-field textarea { resize: vertical; min-height: 62px; }
+  .edit-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+  .edit-btn {
+    font-size: .82rem; border: none; cursor: pointer;
+    padding: .38rem .75rem; border-radius: 8px; font-family: inherit;
+    font-weight: 600; transition: all .15s; line-height: 1;
+    display: inline-flex; align-items: center; gap: .3rem;
+  }
+  .edit-btn-primary { background: var(--accent); color: #fff; }
+  .edit-btn-primary:hover { opacity: .88; }
+  .edit-btn-secondary { background: var(--bg2); color: var(--text-muted); border: 1px solid var(--border); }
+  .edit-btn-secondary:hover { border-color: var(--border2); color: var(--text); }
+  #edit-msg { font-size: .82rem; padding: .3rem 0; min-height: 1.2rem; }
 </style>
 </head>
 <body>
@@ -1590,6 +1667,69 @@
       </div><!-- /page-importar -->
 
     </main>
+  </div>
+</div>
+
+<!-- MODAL EDITAR TRANSACCIÓN -->
+<div class="edit-overlay" id="edit-overlay" onclick="if(event.target===this)cerrarEditorTransaccion()">
+  <div class="edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+    <div class="edit-modal-header">
+      <h3 id="edit-modal-title">✏️ Editar transacción</h3>
+      <button class="edit-close-btn" onclick="cerrarEditorTransaccion()" title="Cerrar">✕</button>
+    </div>
+    <div class="edit-modal-body">
+      <div class="edit-field-row">
+        <div class="edit-field">
+          <label>Fecha</label>
+          <input type="date" id="edit-fecha">
+        </div>
+        <div class="edit-field">
+          <label>Tipo</label>
+          <select id="edit-tipo">
+            <option value="Gasto">💸 Gasto</option>
+            <option value="Ingreso">💰 Ingreso</option>
+          </select>
+        </div>
+      </div>
+      <div class="edit-field-row">
+        <div class="edit-field">
+          <label>Moneda</label>
+          <select id="edit-moneda">
+            <option value="ARS">🇦🇷 ARS</option>
+            <option value="USD">🇺🇸 USD</option>
+          </select>
+        </div>
+        <div class="edit-field">
+          <label>Monto</label>
+          <input type="number" id="edit-monto" step="0.01" min="0" placeholder="0.00">
+        </div>
+      </div>
+      <div class="edit-field">
+        <label>Categoría</label>
+        <select id="edit-categoria"></select>
+      </div>
+      <div class="edit-field">
+        <label>Responsabilidad</label>
+        <select id="edit-responsabilidad">
+          <option value="Mío">🙋 Mío</option>
+          <option value="Compartido">👫 Compartido</option>
+          <option value="De Daniel">💳 De Daniel</option>
+        </select>
+      </div>
+      <div class="edit-field">
+        <label>Fuente / Medio de pago</label>
+        <select id="edit-fuente"></select>
+      </div>
+      <div class="edit-field">
+        <label>Descripción</label>
+        <textarea id="edit-descripcion" placeholder="Descripción opcional..."></textarea>
+      </div>
+      <div id="edit-msg"></div>
+    </div>
+    <div class="edit-modal-footer">
+      <button class="edit-btn edit-btn-secondary" onclick="cerrarEditorTransaccion()">Cancelar</button>
+      <button class="edit-btn edit-btn-primary" id="edit-guardar-btn" onclick="guardarEdicionTransaccion()">💾 Guardar cambios</button>
+    </div>
   </div>
 </div>
 
@@ -2340,7 +2480,10 @@ function filtrarTabla() {
       <td class="col-hide-sm" style="color:var(--text-muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.descripcion || "—"}</td>
       <td style="text-align:right;font-weight:600;white-space:nowrap;color:${t.tipo==="Ingreso"?"var(--green)":"var(--red)"}">${fmtMoneda(t.monto, mon)}</td>
       <td class="col-hide-xs">${monBadge}</td>
-      <td><button class="delete-btn" onclick="eliminarTransaccion('${t.id}')" title="Eliminar">🗑️</button></td>
+      <td style="white-space:nowrap">
+        <button class="delete-btn" onclick="abrirEditorTransaccion('${t.id}')" title="Editar" style="margin-right:.2rem">✏️</button>
+        <button class="delete-btn" onclick="eliminarTransaccion('${t.id}')" title="Eliminar">🗑️</button>
+      </td>
     </tr>`
   }).join("");
 }
@@ -2365,6 +2508,103 @@ async function eliminarTransaccion(id) {
     }
   } catch(e) {
     showToast("❌ Error de conexión", "err");
+  }
+}
+
+// ─── EDITAR TRANSACCIÓN ───────────────────────────────────────
+let editandoId = null;
+
+function abrirEditorTransaccion(id) {
+  const t = allTransac.find(x => x.id === id);
+  if (!t) return;
+  editandoId = id;
+
+  document.getElementById("edit-fecha").value          = t.fecha;
+  document.getElementById("edit-tipo").value           = t.tipo;
+  document.getElementById("edit-moneda").value         = t.moneda || "ARS";
+  document.getElementById("edit-monto").value          = Math.abs(Number(t.monto));
+  document.getElementById("edit-responsabilidad").value = t.responsabilidad || "Mío";
+  document.getElementById("edit-descripcion").value    = t.descripcion || "";
+
+  // Poblar categorías según tipo
+  const cats = t.tipo === "Gasto" ? categGasto : categIngreso;
+  const selCat = document.getElementById("edit-categoria");
+  selCat.innerHTML = cats.map(c => `<option value="${c}" ${c === t.categoria ? "selected" : ""}>${c}</option>`).join("");
+
+  // Poblar fuentes
+  const selFuente = document.getElementById("edit-fuente");
+  selFuente.innerHTML = `<option value="">— Sin especificar —</option>` +
+    categFuentes.map(f => `<option value="${f}" ${f === (t.fuente || "") ? "selected" : ""}>${f}</option>`).join("");
+
+  // Actualizar categorías al cambiar tipo en el modal
+  document.getElementById("edit-tipo").onchange = function() {
+    const cs = this.value === "Gasto" ? categGasto : categIngreso;
+    selCat.innerHTML = cs.map(c => `<option value="${c}">${c}</option>`).join("");
+  };
+
+  document.getElementById("edit-msg").textContent = "";
+  document.getElementById("edit-guardar-btn").disabled = false;
+  document.getElementById("edit-guardar-btn").textContent = "💾 Guardar cambios";
+  document.getElementById("edit-overlay").classList.add("open");
+  document.getElementById("edit-fecha").focus();
+}
+
+function cerrarEditorTransaccion() {
+  document.getElementById("edit-overlay").classList.remove("open");
+  editandoId = null;
+}
+
+async function guardarEdicionTransaccion() {
+  const fecha  = document.getElementById("edit-fecha").value;
+  const tipo   = document.getElementById("edit-tipo").value;
+  const moneda = document.getElementById("edit-moneda").value;
+  const monto  = parseFloat(document.getElementById("edit-monto").value);
+  const cat    = document.getElementById("edit-categoria").value;
+  const resp   = document.getElementById("edit-responsabilidad").value;
+  const fuente = document.getElementById("edit-fuente").value;
+  const desc   = document.getElementById("edit-descripcion").value;
+  const msg    = document.getElementById("edit-msg");
+
+  if (!fecha || isNaN(monto) || monto <= 0 || !cat) {
+    msg.innerHTML = '<span style="color:var(--red)">Completá fecha, monto y categoría.</span>';
+    return;
+  }
+
+  const btn = document.getElementById("edit-guardar-btn");
+  btn.disabled = true;
+  btn.textContent = "⏳ Guardando...";
+  msg.textContent = "";
+
+  try {
+    const r = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "updateTransaccion",
+        id: editandoId, fecha, tipo, categoria: cat,
+        monto, descripcion: desc, responsabilidad: resp, fuente, moneda
+      })
+    });
+    const j = await r.json();
+    if (j.ok) {
+      // Actualizar localmente
+      const idx = allTransac.findIndex(x => x.id === editandoId);
+      if (idx !== -1) {
+        allTransac[idx] = { ...allTransac[idx], fecha, tipo, categoria: cat, monto, descripcion: desc, responsabilidad: resp, fuente, moneda };
+      }
+      cerrarEditorTransaccion();
+      filtrarTabla();
+      cargarResumenMes();
+      cargarEvolucion();
+      showToast("✅ Transacción actualizada", "ok");
+    } else {
+      msg.innerHTML = `<span style="color:var(--red)">❌ ${j.error || "Error al guardar"}</span>`;
+      btn.disabled = false;
+      btn.textContent = "💾 Guardar cambios";
+    }
+  } catch(e) {
+    msg.innerHTML = '<span style="color:var(--red)">❌ Error de conexión</span>';
+    btn.disabled = false;
+    btn.textContent = "💾 Guardar cambios";
   }
 }
 
