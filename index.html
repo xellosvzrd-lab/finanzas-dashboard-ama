@@ -4395,7 +4395,34 @@ function _autoCategoria(desc) {
 }
 
 function _parsearLinea(linea) {
-  const l = linea.replace(/\s{2,}/g, "  ").trim();
+  const l = linea.replace(/\s{2,}/g, " ").trim();
+
+  // ── Formato Galicia VISA: DD-MM-YY TYPE DESC [CUOTA] COMPROBANTE PESOS [DÓLARES]
+  // Ejemplos reales:
+  //   30-09-25 * 419032*MOVISTAR ARENA 06/06 000719 50.000,00
+  //   06-03-26 K SUBE Viajes 389653 724,09
+  //   06-03-26 K Microsoft*Xbox G MicrosoftUSD 17,95 488809 17,95
+  // Anchor estructural: número de 6 dígitos (comprobante) antes del/los importes
+  const galiciaRe = /^(\d{2})-(\d{2})-(\d{2})\s+\S\s+(.+?)\s+(\d{6})\s+([\d.]+,\d{1,2})(?:\s+([\d.]+,\d{1,2}))?$/;
+  const gm = l.match(galiciaRe);
+  if (gm) {
+    const [, dd, mm, yy, rawDesc, , monto1, monto2] = gm;
+    let desc = rawDesc
+      .replace(/^\d+\*/, "")               // quitar prefijo ref tipo "419032*"
+      .replace(/\s+\d{2}\/\d{2}\s*$/, "")  // quitar cuota tipo " 06/06"
+      .trim();
+    let gMoneda = "ARS", gMontoStr = monto1;
+    if (monto2 || /USD|U\$S/i.test(desc)) {
+      gMoneda = "USD";
+      gMontoStr = monto2 || monto1;
+    }
+    desc = desc.replace(/U\$S\b/g, "").replace(/\bUSD\b/g, "").replace(/\s{2,}/g, " ").trim();
+    const gMonto = parseFloat(gMontoStr.replace(/\./g, "").replace(",", "."));
+    if (isNaN(gMonto) || gMonto <= 0) return null;
+    return { dia: dd, mes: mm, añoRaw: yy, desc, moneda: gMoneda, monto: gMonto };
+  }
+
+  // ── Formato genérico: DD/MM[/YY|/YYYY]  DESCRIPCION  [U$S|USD]  MONTO
   const fechaRe = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/;
   const fm = l.match(fechaRe);
   if (!fm) return null;
