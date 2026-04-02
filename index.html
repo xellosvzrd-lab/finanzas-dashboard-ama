@@ -1026,6 +1026,86 @@
   .edit-modal-body  { padding: 1.2rem 1.5rem; display: flex; flex-direction: column; gap: .9rem; }
   .edit-modal-footer { padding: .9rem 1.5rem 1.3rem; display: flex; gap: .6rem; justify-content: flex-end; border-top: 1px solid var(--glass-border); }
 
+  /* ─── MODAL MODO RÁFAGA ──────────────────────────────────── */
+  .rafaga-overlay {
+    display: none; position: fixed; inset: 0; z-index: 400;
+    background: rgba(0,0,0,.55); backdrop-filter: blur(4px);
+    align-items: flex-start; justify-content: center;
+    padding: 1rem; animation: fadeIn .18s ease; overflow-y: auto;
+  }
+  .rafaga-overlay.open { display: flex; }
+  .rafaga-modal {
+    background: rgba(12,12,34,0.92); backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    width: 100%; max-width: 1100px; margin: auto;
+    animation: fadeUp .22s ease;
+  }
+  .rafaga-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.1rem 1.5rem .9rem;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .rafaga-header h3 { font-size: 1rem; font-weight: 700; margin: 0; }
+  .rafaga-body { padding: 1rem 1.2rem; overflow-x: auto; }
+  .rafaga-table {
+    width: 100%; border-collapse: collapse; font-size: .82rem; min-width: 820px;
+  }
+  .rafaga-table th {
+    text-align: left; padding: .4rem .5rem;
+    color: var(--text-muted); font-weight: 600;
+    text-transform: uppercase; font-size: .68rem; letter-spacing: .05em;
+    border-bottom: 1px solid rgba(255,255,255,0.08); white-space: nowrap;
+  }
+  .rafaga-table td {
+    padding: .32rem .38rem; vertical-align: middle;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .rafaga-table td input, .rafaga-table td select {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px; color: var(--text);
+    padding: .3rem .42rem; font-size: .81rem; width: 100%;
+    transition: border-color .15s;
+  }
+  .rafaga-table td input:focus, .rafaga-table td select:focus {
+    outline: none; border-color: var(--accent);
+  }
+  .rafaga-table td input[type="date"] { min-width: 112px; }
+  .rafaga-table td input[type="number"] { min-width: 75px; }
+  .rafaga-table td select { min-width: 88px; }
+  .rafaga-desc { min-width: 130px !important; }
+  .td-del { width: 2rem; text-align: center; }
+  .rafaga-del-btn {
+    background: none; border: none; color: var(--text-muted);
+    font-size: 1rem; cursor: pointer; padding: .15rem .35rem;
+    border-radius: 5px; transition: background .15s, color .15s; line-height: 1;
+  }
+  .rafaga-del-btn:hover { background: var(--red-dim); color: var(--red); }
+  .rafaga-footer {
+    padding: .85rem 1.2rem 1.1rem;
+    display: flex; gap: .6rem; align-items: center;
+    border-top: 1px solid rgba(255,255,255,0.07); flex-wrap: wrap;
+  }
+  .rafaga-add-btn {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: var(--text); border-radius: 8px;
+    padding: .42rem .88rem; font-size: .83rem;
+    cursor: pointer; transition: background .15s;
+  }
+  .rafaga-add-btn:hover { background: rgba(255,255,255,0.11); }
+  .rafaga-count { color: var(--text-muted); font-size: .78rem; }
+  .rafaga-row-err td { background: rgba(220,50,50,0.07); }
+  .btn-rafaga {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #000; border: none; border-radius: 9px;
+    padding: .42rem .95rem; font-size: .82rem; font-weight: 700;
+    cursor: pointer; transition: opacity .15s; white-space: nowrap;
+  }
+  .btn-rafaga:hover { opacity: .88; }
+
   .edit-field label {
     display: block; font-size: .71rem; font-weight: 600;
     color: var(--text-muted); text-transform: uppercase;
@@ -1304,8 +1384,9 @@
 
       <!-- ── PÁGINA NUEVA TRANSACCIÓN ──────────────────── -->
       <div id="page-nueva" class="page">
-        <div class="page-header">
-          <h1>Nueva transacción</h1>
+        <div class="page-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.6rem">
+          <h1 style="margin:0">Nueva transacción</h1>
+          <button class="btn-rafaga" onclick="abrirRafaga()" title="Cargar varias transacciones de una vez">⚡ Modo Ráfaga</button>
         </div>
         <div class="form-card">
           <div class="form-row">
@@ -1667,6 +1748,42 @@
       </div><!-- /page-importar -->
 
     </main>
+  </div>
+</div>
+
+<!-- MODAL MODO RÁFAGA -->
+<div class="rafaga-overlay" id="rafaga-overlay" onclick="if(event.target===this)cerrarRafaga()">
+  <div class="rafaga-modal" role="dialog" aria-modal="true" aria-labelledby="rafaga-title">
+    <div class="rafaga-header">
+      <h3 id="rafaga-title">⚡ Modo Ráfaga — Carga múltiple</h3>
+      <button class="edit-close-btn" onclick="cerrarRafaga()" title="Cerrar">✕</button>
+    </div>
+    <div class="rafaga-body">
+      <table class="rafaga-table" id="rafaga-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Categoría</th>
+            <th>Monto</th>
+            <th>Moneda</th>
+            <th>Descripción</th>
+            <th>Resp.</th>
+            <th>Fuente</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rafaga-tbody"></tbody>
+      </table>
+    </div>
+    <div class="rafaga-footer">
+      <button class="rafaga-add-btn" onclick="agregarFilaRafaga()">➕ Agregar fila</button>
+      <span class="rafaga-count" id="rafaga-count">3 filas</span>
+      <button class="btn btn-outline" onclick="cerrarRafaga()" style="margin-left:auto">Cancelar</button>
+      <button class="btn btn-primary" id="rafaga-guardar-btn" onclick="guardarRafaga()">💾 Guardar todo (3)</button>
+    </div>
+    <div id="rafaga-msg" style="padding:.4rem 1.2rem .8rem; font-size:.82rem; min-height:1.2em;"></div>
   </div>
 </div>
 
@@ -2683,6 +2800,153 @@ async function guardarTransaccion() {
 
   btn.disabled = false;
   btn.textContent = "💾 Guardar";
+}
+
+// ─── MODO RÁFAGA ──────────────────────────────────────────────
+function abrirRafaga() {
+  document.getElementById("rafaga-overlay").classList.add("open");
+  document.getElementById("rafaga-msg").innerHTML = "";
+  const tbody = document.getElementById("rafaga-tbody");
+  if (tbody.children.length === 0) {
+    agregarFilaRafaga();
+    agregarFilaRafaga();
+    agregarFilaRafaga();
+  }
+}
+
+function cerrarRafaga() {
+  document.getElementById("rafaga-overlay").classList.remove("open");
+}
+
+function _optsCategRafaga(tipo) {
+  const cats = tipo === "Ingreso" ? categIngreso : categGasto;
+  return cats.map(c => `<option value="${c}">${c}</option>`).join("");
+}
+
+function _optsFuenteRafaga() {
+  return '<option value="">— Sin especificar —</option>' +
+    categFuentes.map(f => `<option value="${f}">${f}</option>`).join("");
+}
+
+function _optsRespRafaga() {
+  return categResponsabilidad.map(r => `<option value="${r}">${r}</option>`).join("");
+}
+
+function agregarFilaRafaga() {
+  const tbody = document.getElementById("rafaga-tbody");
+  const idx   = tbody.children.length + 1;
+  const hoy   = new Date().toISOString().slice(0, 10);
+  const tr    = document.createElement("tr");
+  tr.innerHTML = `
+    <td style="color:var(--text-muted);text-align:center;font-size:.73rem;padding:.3rem .2rem">${idx}</td>
+    <td><input type="date" class="rf-fecha" value="${hoy}"></td>
+    <td>
+      <select class="rf-tipo" onchange="this.closest('tr').querySelector('.rf-cat').innerHTML=_optsCategRafaga(this.value)">
+        <option value="Gasto">💸 Gasto</option>
+        <option value="Ingreso">💰 Ingreso</option>
+      </select>
+    </td>
+    <td><select class="rf-cat">${_optsCategRafaga("Gasto")}</select></td>
+    <td><input type="number" class="rf-monto" placeholder="0" step="0.01" min="0"></td>
+    <td>
+      <select class="rf-moneda">
+        <option value="ARS">🇦🇷 ARS</option>
+        <option value="USD">🇺🇸 USD</option>
+      </select>
+    </td>
+    <td><input type="text" class="rf-desc rafaga-desc" placeholder="Descripción opcional"></td>
+    <td><select class="rf-resp">${_optsRespRafaga()}</select></td>
+    <td><select class="rf-fuente">${_optsFuenteRafaga()}</select></td>
+    <td class="td-del"><button class="rafaga-del-btn" onclick="eliminarFilaRafaga(this)" title="Eliminar fila">✕</button></td>
+  `;
+  tbody.appendChild(tr);
+  actualizarContadorRafaga();
+}
+
+function eliminarFilaRafaga(btn) {
+  const tbody = document.getElementById("rafaga-tbody");
+  if (tbody.children.length <= 1) return;
+  btn.closest("tr").remove();
+  Array.from(tbody.children).forEach((tr, i) => { tr.cells[0].textContent = i + 1; });
+  actualizarContadorRafaga();
+}
+
+function actualizarContadorRafaga() {
+  const n = document.getElementById("rafaga-tbody").children.length;
+  document.getElementById("rafaga-count").textContent = `${n} fila${n !== 1 ? "s" : ""}`;
+  document.getElementById("rafaga-guardar-btn").textContent = `💾 Guardar todo (${n})`;
+}
+
+async function guardarRafaga() {
+  const tbody = document.getElementById("rafaga-tbody");
+  const msg   = document.getElementById("rafaga-msg");
+  msg.innerHTML = "";
+
+  const validas = [];
+  let errores = 0;
+
+  Array.from(tbody.children).forEach(tr => {
+    const fecha  = tr.querySelector(".rf-fecha").value;
+    const tipo   = tr.querySelector(".rf-tipo").value;
+    const cat    = tr.querySelector(".rf-cat").value;
+    const monto  = parseFloat(tr.querySelector(".rf-monto").value);
+    const moneda = tr.querySelector(".rf-moneda").value;
+    const desc   = tr.querySelector(".rf-desc").value.trim();
+    const resp   = tr.querySelector(".rf-resp").value;
+    const fuente = tr.querySelector(".rf-fuente").value;
+
+    tr.classList.remove("rafaga-row-err");
+    const err = [];
+    if (!fecha) err.push("fecha");
+    if (!cat)   err.push("categoría");
+    if (isNaN(monto) || monto <= 0) err.push("monto");
+
+    if (err.length) {
+      errores++;
+      tr.classList.add("rafaga-row-err");
+    } else {
+      validas.push({ fecha, tipo, categoria: cat, monto, descripcion: desc,
+                     usuario: USUARIO, responsabilidad: resp, fuente, moneda });
+    }
+  });
+
+  if (errores > 0) {
+    msg.innerHTML = `<span style="color:var(--red)">⚠ ${errores} fila(s) con errores (marcadas). Completá fecha, categoría y monto.</span>`;
+    return;
+  }
+  if (!validas.length) {
+    msg.innerHTML = `<span style="color:var(--red)">No hay filas para guardar.</span>`;
+    return;
+  }
+
+  const btn = document.getElementById("rafaga-guardar-btn");
+  btn.disabled = true;
+  btn.textContent = "⏳ Guardando...";
+
+  try {
+    const r = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "batchAddTransacciones", rows: validas })
+    });
+    const j = await r.json();
+    if (j.ok) {
+      showToast(`✅ ${j.msg || `${validas.length} transacciones guardadas`}`, "ok");
+      cerrarRafaga();
+      document.getElementById("rafaga-tbody").innerHTML = "";
+      await cargarTodasTransacciones();
+      cargarResumenMes();
+      cargarEvolucion();
+      filtrarTabla();
+    } else {
+      msg.innerHTML = `<span style="color:var(--red)">❌ ${j.error}</span>`;
+      btn.disabled = false;
+      btn.textContent = `💾 Guardar todo (${validas.length})`;
+    }
+  } catch(e) {
+    msg.innerHTML = `<span style="color:var(--red)">❌ Error de conexión: ${e.message}</span>`;
+    btn.disabled = false;
+    btn.textContent = `💾 Guardar todo (${validas.length})`;
+  }
 }
 
 // ─── COMPARTIDOS ──────────────────────────────────────────────
