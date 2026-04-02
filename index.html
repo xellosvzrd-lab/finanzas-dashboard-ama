@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>💰 Finanzas Personales — Ama</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   /* ─── FONTS ──────────────────────────────────────────────── */
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -545,6 +546,61 @@
   }
 
   /* ─── IMPORTAR DATOS ────────────────────────────────────── */
+  /* ─── TABS IMPORTAR ──────────────────────────────────── */
+  .imp-tabs { display: flex; gap: .4rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+  .imp-tab {
+    background: none; border: none; color: var(--text-muted);
+    padding: .45rem 1rem; border-radius: 8px 8px 0 0;
+    font-size: .85rem; font-weight: 600; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color .15s, border-color .15s;
+  }
+  .imp-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .imp-tab:hover:not(.active) { color: var(--text); }
+  .imp-tab-panel { display: none; }
+  .imp-tab-panel.active { display: block; }
+
+  /* ─── PDF DROP ZONE ───────────────────────────────────── */
+  .pdf-drop-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius);
+    padding: 2.5rem 1.5rem; text-align: center; cursor: pointer;
+    transition: border-color .2s, background .2s; margin-bottom: 1.2rem;
+  }
+  .pdf-drop-zone:hover, .pdf-drop-zone.drag-over {
+    border-color: var(--accent); background: var(--accent-dim);
+  }
+  .pdf-drop-zone .pdf-drop-icon { font-size: 2.5rem; margin-bottom: .5rem; }
+  .pdf-drop-zone p { color: var(--text-muted); font-size: .86rem; margin: .25rem 0; }
+  .pdf-drop-zone strong { color: var(--text); }
+  .pdf-file-list { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1.2rem; }
+  .pdf-file-item {
+    display: flex; align-items: center; gap: .75rem;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: .55rem .9rem; font-size: .84rem;
+  }
+  .pdf-file-icon { font-size: 1.1rem; }
+  .pdf-file-name { flex: 1; font-weight: 600; }
+  .pdf-file-fuente {
+    background: var(--accent-dim); color: var(--accent);
+    border-radius: 5px; padding: .15rem .55rem; font-size: .75rem; font-weight: 700;
+  }
+  .pdf-file-remove {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 1rem; padding: .1rem .3rem;
+    border-radius: 4px; transition: color .15s;
+  }
+  .pdf-file-remove:hover { color: var(--red); }
+  .pdf-parse-progress {
+    background: var(--bg3); border-radius: 8px; padding: 1rem;
+    font-size: .83rem; color: var(--text-muted); display: none;
+  }
+  .pdf-cat-select {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 5px; color: var(--text); font-size: .78rem;
+    padding: .2rem .35rem; max-width: 130px;
+  }
+  .pdf-cat-select.sin-cat { border-color: var(--yellow); color: var(--yellow); }
+
   .imp-instrucciones {
     background: var(--accent-dim); border: 1px solid rgba(124,110,255,.2);
     border-radius: var(--radius); padding: 1.2rem 1.5rem;
@@ -1667,8 +1723,17 @@
       <!-- ── PÁGINA IMPORTAR DATOS ──────────────────────── -->
       <div id="page-importar" class="page">
         <div class="page-header">
-          <h1>📥 Importar datos históricos</h1>
+          <h1>📥 Importar datos</h1>
         </div>
+
+        <!-- Tabs -->
+        <div class="imp-tabs">
+          <button class="imp-tab active" id="imp-tab-btn-paste" onclick="impSwitchTab('paste')">📋 Copiar / Pegar</button>
+          <button class="imp-tab" id="imp-tab-btn-pdf" onclick="impSwitchTab('pdf')">📄 Resumen de tarjeta (PDF)</button>
+        </div>
+
+        <!-- ── TAB: COPIAR/PEGAR ── -->
+        <div id="imp-tab-paste" class="imp-tab-panel active">
 
         <!-- Instrucciones -->
         <div class="imp-instrucciones">
@@ -1744,6 +1809,61 @@
           </div>
           <div id="imp-result-msg" style="display:none;" class="imp-result-msg"></div>
         </div>
+
+        </div><!-- /imp-tab-paste -->
+
+        <!-- ── TAB: PDF ── -->
+        <div id="imp-tab-pdf" class="imp-tab-panel">
+
+          <div class="pdf-drop-zone" id="pdf-drop-zone"
+               onclick="document.getElementById('pdf-file-input').click()"
+               ondragover="event.preventDefault();this.classList.add('drag-over')"
+               ondragleave="this.classList.remove('drag-over')"
+               ondrop="event.preventDefault();this.classList.remove('drag-over');pdfAgregarArchivos(event.dataTransfer.files)">
+            <div class="pdf-drop-icon">📄</div>
+            <p><strong>Arrastrá los PDFs acá</strong> o hacé clic para seleccionar</p>
+            <p>Cada nombre de archivo será la fuente — ej: <code>Galicia VISA.pdf</code> → fuente «Galicia VISA»</p>
+            <p style="margin-top:.5rem; font-size:.78rem">Podés subir varios PDFs a la vez (distintas tarjetas)</p>
+            <input type="file" id="pdf-file-input" accept=".pdf" multiple style="display:none"
+                   onchange="pdfAgregarArchivos(this.files)">
+          </div>
+
+          <div class="pdf-file-list" id="pdf-file-list"></div>
+          <div id="pdf-parse-progress" class="pdf-parse-progress">⏳ Leyendo PDFs...</div>
+
+          <div class="imp-actions" id="pdf-actions" style="display:none">
+            <button class="btn btn-primary" onclick="parsearPDFs()">🔍 Leer y previsualizar</button>
+            <button class="btn btn-outline" onclick="pdfLimpiarTodo()">🗑 Limpiar</button>
+          </div>
+
+          <div id="pdf-preview-wrap" class="imp-preview-wrap" style="display:none; margin-top:1.5rem">
+            <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+              <h3>Previsualización</h3>
+              <span id="pdf-badge" class="imp-badge-count">0 transacciones</span>
+              <span style="color:var(--yellow);font-size:.78rem" id="pdf-sin-cat-aviso"></span>
+            </div>
+            <div id="pdf-stats" class="imp-stats"></div>
+            <div class="table-wrap">
+              <table class="imp-preview-table">
+                <thead>
+                  <tr>
+                    <th>#</th><th>Fecha</th><th>Descripción</th>
+                    <th>Monto</th><th>Moneda</th>
+                    <th>Categoría</th><th>Fuente</th><th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="pdf-preview-tbody"></tbody>
+              </table>
+            </div>
+            <div class="imp-actions" style="margin-top:1.5rem">
+              <button id="pdf-confirm-btn" class="btn btn-primary" onclick="confirmarImportPDF()">
+                ✅ Importar transacciones
+              </button>
+            </div>
+            <div id="pdf-result-msg" style="display:none;" class="imp-result-msg"></div>
+          </div>
+
+        </div><!-- /imp-tab-pdf -->
 
       </div><!-- /page-importar -->
 
@@ -4161,6 +4281,254 @@ function fmtShort(n) {
 function fmtFecha(s) {
   const d = new Date(s + "T12:00:00");
   return d.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+// ─── IMPORTAR PDF ─────────────────────────────────────────────
+if (typeof pdfjsLib !== "undefined") {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+}
+
+let pdfArchivos = [];
+
+function impSwitchTab(tab) {
+  ["paste","pdf"].forEach(t => {
+    document.getElementById(`imp-tab-${t}`).classList.toggle("active", t === tab);
+    document.getElementById(`imp-tab-btn-${t}`).classList.toggle("active", t === tab);
+  });
+}
+
+function pdfAgregarArchivos(files) {
+  for (const f of files) {
+    if (!f.name.toLowerCase().endsWith(".pdf")) continue;
+    if (pdfArchivos.find(x => x.name === f.name)) continue;
+    pdfArchivos.push(f);
+  }
+  pdfRenderFileList();
+}
+
+function pdfRenderFileList() {
+  const list = document.getElementById("pdf-file-list");
+  const actions = document.getElementById("pdf-actions");
+  list.innerHTML = pdfArchivos.map((f, i) => {
+    const fuente = f.name.replace(/\.pdf$/i, "").trim();
+    const matchFuente = categFuentes.find(cf => cf.toLowerCase() === fuente.toLowerCase()) || fuente;
+    return `
+      <div class="pdf-file-item">
+        <span class="pdf-file-icon">📄</span>
+        <span class="pdf-file-name">${f.name}</span>
+        <span class="pdf-file-fuente">fuente: ${matchFuente}</span>
+        <button class="pdf-file-remove" onclick="pdfQuitarArchivo(${i})" title="Quitar">✕</button>
+      </div>`;
+  }).join("");
+  actions.style.display = pdfArchivos.length ? "flex" : "none";
+  document.getElementById("pdf-preview-wrap").style.display = "none";
+  document.getElementById("pdf-result-msg").style.display = "none";
+}
+
+function pdfQuitarArchivo(idx) {
+  pdfArchivos.splice(idx, 1);
+  pdfRenderFileList();
+}
+
+function pdfLimpiarTodo() {
+  pdfArchivos = [];
+  document.getElementById("pdf-file-input").value = "";
+  pdfRenderFileList();
+  document.getElementById("pdf-preview-wrap").style.display = "none";
+}
+
+async function _pdfExtraerTexto(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let texto = "";
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page    = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const lineas  = {};
+    for (const item of content.items) {
+      const y = Math.round(item.transform[5]);
+      if (!lineas[y]) lineas[y] = [];
+      lineas[y].push({ x: item.transform[4], str: item.str });
+    }
+    const ysOrdenados = Object.keys(lineas).map(Number).sort((a, b) => b - a);
+    for (const y of ysOrdenados) {
+      texto += lineas[y].sort((a,b) => a.x - b.x).map(i => i.str).join(" ") + "\n";
+    }
+    texto += "\n";
+  }
+  return texto;
+}
+
+const PDF_KEYWORD_CAT = [
+  { re: /carrefour|jumbo|disco|walmart|coto|\bdia\b|maxi\s?kiosco|supermercado|super\s?vea|toledo|changomas/i, cat: "Mercado" },
+  { re: /netflix|spotify|disney|hbo|amazon\s?prime|apple\s*tv|paramount|deezer|mubi/i,                         cat: "Servicios" },
+  { re: /movistar|personal\s+celular|claro|telecom|directv|cablevision|fibertel|telecentro/i,                  cat: "Servicios" },
+  { re: /metrogas|aysa|edesur|edenor|aguas\s+argen|gas\s+natural/i,                                           cat: "Servicios" },
+  { re: /uber\*|cabify|didi|remis|taxi/i,                                                                      cat: "Transporte" },
+  { re: /ypf|shell|axion|petrobras|nafta|petro|infinia/i,                                                      cat: "Transporte" },
+  { re: /subte|metrovias|sube\b/i,                                                                             cat: "Transporte" },
+  { re: /rappi|pedidos\s*ya|glovo/i,                                                                           cat: "Delivery" },
+  { re: /farmacity|drogueria|farmacia|ahorro\s*farma/i,                                                        cat: "Farmacia" },
+  { re: /sancor\s+salud|osde|swiss\s*medical|medicus|galeno|omint/i,                                          cat: "Salud" },
+  { re: /megatlon|smart\s*fit|bodytech|gimnasio|gym\b/i,                                                       cat: "Gym" },
+  { re: /google\b|microsoft|adobe|github|openai|chatgpt|dropbox|icloud/i,                                      cat: "Servicios" },
+  { re: /mercadolibre|meli\b|amazon(?!\s*prime)|ebay/i,                                                        cat: "Electro" },
+  { re: /starbucks|mcdonald|burger\s*king|kentucky|kfc|mostaza|mc\s*donalds|subway/i,                          cat: "Salida Comida" },
+  { re: /expensas|administraci[oó]n\s+consorcio/i,                                                             cat: "Expensas" },
+  { re: /hotel|airbnb|booking|despegar|almundo/i,                                                              cat: "Viajes" },
+  { re: /aerol[ií]neas|latam|flybondi|jetsmart/i,                                                             cat: "Viajes" },
+  { re: /zara|h&m|uniqlo|adidas|nike|lacoste/i,                                                               cat: "Vestimenta" },
+  { re: /libreria|el\s*ateneo|yenny|cuspide|libro/i,                                                          cat: "Libros" },
+  { re: /cine|hoyts|cinemark|showcase/i,                                                                       cat: "Entradas" },
+];
+
+function _autoCategoria(desc) {
+  const allCats = [...categGasto, ...categIngreso];
+  for (const { re, cat } of PDF_KEYWORD_CAT) {
+    if (re.test(desc)) {
+      const match = allCats.find(c => c.toLowerCase() === cat.toLowerCase());
+      if (match) return match;
+    }
+  }
+  return "";
+}
+
+function _parsearLinea(linea) {
+  const l = linea.replace(/\s{2,}/g, "  ").trim();
+  const fechaRe = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/;
+  const fm = l.match(fechaRe);
+  if (!fm) return null;
+  const resto = l.slice(fm[0].length).trim();
+  let moneda = "ARS", monto = null, desc = resto;
+  const usdM = resto.match(/\bU\$S\s*([\d.,]+)\s*$/i) || resto.match(/\bUSD\s*([\d.,]+)\s*$/i);
+  if (usdM) {
+    moneda = "USD"; monto = usdM[1];
+    desc = resto.slice(0, resto.lastIndexOf(usdM[0])).trim();
+  } else {
+    const arsM = resto.match(/\$\s*([\d.,]+)\s*$/) || resto.match(/\s([\d.,]+)\s*$/);
+    if (arsM) { monto = arsM[1]; desc = resto.slice(0, resto.lastIndexOf(arsM[0])).trim(); }
+  }
+  if (!monto) return null;
+  const montoNum = parseFloat(monto.replace(/\./g, "").replace(",", "."));
+  if (isNaN(montoNum) || montoNum <= 0) return null;
+  return { dia: fm[1], mes: fm[2], añoRaw: fm[3], desc: desc.trim(), moneda, monto: montoNum };
+}
+
+function _parsearTextoResumen(texto, fuente) {
+  let añoPeriodo = new Date().getFullYear();
+  const añoMatch = texto.match(/(?:per[ií]odo|cierre|vencimiento)[^0-9]*(\d{2})\/(\d{2})\/(\d{2,4})/i);
+  if (añoMatch) { let a = parseInt(añoMatch[3]); if (a < 100) a += 2000; añoPeriodo = a; }
+  else { const anyYear = texto.match(/\b(20\d{2})\b/); if (anyYear) añoPeriodo = parseInt(anyYear[1]); }
+
+  return texto.split("\n").reduce((acc, linea) => {
+    const p = _parsearLinea(linea);
+    if (!p) return acc;
+    let año = añoPeriodo;
+    if (p.añoRaw) { año = parseInt(p.añoRaw); if (año < 100) año += 2000; }
+    const fecha = `${año}-${p.mes.padStart(2,"0")}-${p.dia.padStart(2,"0")}`;
+    acc.push({ fecha, tipo: "Gasto", categoria: _autoCategoria(p.desc),
+               monto: p.monto, moneda: p.moneda, descripcion: p.desc,
+               fuente, usuario: USUARIO, responsabilidad: "Mío" });
+    return acc;
+  }, []);
+}
+
+let pdfFilasParsed = [];
+
+async function parsearPDFs() {
+  if (!pdfArchivos.length) return;
+  const progress = document.getElementById("pdf-parse-progress");
+  const actions  = document.getElementById("pdf-actions");
+  progress.style.display = "block";
+  actions.style.display  = "none";
+  pdfFilasParsed = [];
+  for (const file of pdfArchivos) {
+    const fuente = file.name.replace(/\.pdf$/i, "").trim();
+    progress.textContent = `⏳ Leyendo ${file.name}...`;
+    try {
+      const texto = await _pdfExtraerTexto(file);
+      pdfFilasParsed.push(..._parsearTextoResumen(texto, fuente));
+    } catch (e) { console.error("Error leyendo PDF:", file.name, e); }
+  }
+  progress.style.display = "none";
+  actions.style.display  = "flex";
+  _renderPDFPreview();
+}
+
+function _renderPDFPreview() {
+  const wrap  = document.getElementById("pdf-preview-wrap");
+  const tbody = document.getElementById("pdf-preview-tbody");
+  const n     = pdfFilasParsed.length;
+  if (!n) { wrap.style.display = "none"; showToast("No se encontraron transacciones en los PDFs", "error"); return; }
+
+  const allCats = [...new Set([...categGasto, ...categIngreso])].sort();
+  const sinCat  = pdfFilasParsed.filter(f => !f.categoria).length;
+  document.getElementById("pdf-badge").textContent = `${n} transacción${n !== 1 ? "es" : ""}`;
+  document.getElementById("pdf-sin-cat-aviso").textContent = sinCat > 0
+    ? `⚠ ${sinCat} sin categoría auto-detectada — asignala manualmente` : "";
+
+  tbody.innerHTML = pdfFilasParsed.map((f, i) => {
+    const catOpts = allCats.map(c => `<option value="${c}" ${c === f.categoria ? "selected" : ""}>${c}</option>`).join("");
+    const sinCatCls = f.categoria ? "" : " sin-cat";
+    const monBadge = f.moneda === "USD"
+      ? `<span class="badge-moneda usd">USD</span>`
+      : `<span class="badge-moneda ars">ARS</span>`;
+    return `<tr>
+      <td>${i+1}</td>
+      <td>${f.fecha}</td>
+      <td style="max-width:200px;font-size:.78rem">${f.descripcion}</td>
+      <td style="text-align:right">${f.moneda === "USD" ? "U$S "+f.monto.toFixed(2) : fmtMoneda(f.monto,"ARS")}</td>
+      <td>${monBadge}</td>
+      <td><select class="pdf-cat-select${sinCatCls}"
+            onchange="pdfFilasParsed[${i}].categoria=this.value;this.classList.remove('sin-cat')"
+          ><option value="">— elegir —</option>${catOpts}</select></td>
+      <td style="font-size:.75rem">${f.fuente}</td>
+      <td>${f.categoria ? "✅" : `<span style="color:var(--yellow)">⚠ asignar</span>`}</td>
+    </tr>`;
+  }).join("");
+
+  const totalARS = pdfFilasParsed.filter(f=>f.moneda==="ARS").reduce((s,f)=>s+f.monto,0);
+  const totalUSD = pdfFilasParsed.filter(f=>f.moneda==="USD").reduce((s,f)=>s+f.monto,0);
+  document.getElementById("pdf-stats").innerHTML =
+    `Total ARS: <strong>${fmtMoneda(totalARS,"ARS")}</strong>&nbsp;&nbsp;` +
+    (totalUSD > 0 ? `Total USD: <strong>U$S ${totalUSD.toFixed(2)}</strong>` : "");
+  wrap.style.display = "block";
+}
+
+async function confirmarImportPDF() {
+  const sinCat = pdfFilasParsed.filter(f => !f.categoria);
+  if (sinCat.length) { showToast(`Asigná categoría a las ${sinCat.length} filas en amarillo`, "error"); return; }
+  const btn   = document.getElementById("pdf-confirm-btn");
+  const msgEl = document.getElementById("pdf-result-msg");
+  btn.disabled = true; btn.textContent = "⏳ Importando...";
+  msgEl.style.display = "none";
+  try {
+    const r = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "batchAddTransacciones", rows: pdfFilasParsed })
+    });
+    const j = await r.json();
+    msgEl.style.display = "block";
+    if (j.ok) {
+      msgEl.className = "imp-result-msg ok";
+      msgEl.textContent = `✅ ${j.msg || `${pdfFilasParsed.length} transacciones importadas`}`;
+      showToast(msgEl.textContent, "ok");
+      await cargarTodasTransacciones();
+      cargarResumenMes(); cargarEvolucion(); filtrarTabla();
+      pdfFilasParsed = []; pdfLimpiarTodo();
+      document.getElementById("pdf-preview-wrap").style.display = "none";
+    } else {
+      msgEl.className = "imp-result-msg fail";
+      msgEl.textContent = `❌ ${j.error}`;
+      btn.disabled = false; btn.textContent = "✅ Importar transacciones";
+    }
+  } catch (e) {
+    msgEl.style.display = "block";
+    msgEl.className = "imp-result-msg fail";
+    msgEl.textContent = `❌ Error de conexión: ${e.message}`;
+    btn.disabled = false; btn.textContent = "✅ Importar transacciones";
+  }
 }
 </script>
 </body>
