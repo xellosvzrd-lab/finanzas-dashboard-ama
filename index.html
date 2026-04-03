@@ -2900,29 +2900,46 @@ async function guardarEdicionTransaccion() {
   btn.textContent = "⏳ Guardando...";
   msg.textContent = "";
 
+  // El backend no tiene updateTransaccion — workaround: delete + add
+  const idAEliminar = editandoId;
+
   try {
-    const r = await fetch(API_URL, {
+    // PASO 1: eliminar la transacción original
+    const rDel = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "deleteTransaccion", id: idAEliminar })
+    });
+    const jDel = await rDel.json();
+    if (!jDel.ok) {
+      msg.innerHTML = `<span style="color:var(--red)">❌ Error al eliminar original: ${jDel.error || "?"}</span>`;
+      btn.disabled = false;
+      btn.textContent = "💾 Guardar cambios";
+      return;
+    }
+
+    // PASO 2: agregar con los datos actualizados
+    const rAdd = await fetch(API_URL, {
       method: "POST",
       body: JSON.stringify({
-        action: "updateTransaccion",
-        id: editandoId, fecha, tipo, categoria: cat,
-        monto, descripcion: desc, responsabilidad: resp, fuente, moneda
+        action: "addTransaccion",
+        fecha, tipo, categoria: cat,
+        monto, descripcion: desc,
+        usuario: USUARIO,
+        responsabilidad: resp,
+        fuente, moneda
       })
     });
-    const j = await r.json();
-    if (j.ok) {
-      // Actualizar localmente
-      const idx = allTransac.findIndex(x => x.id === editandoId);
-      if (idx !== -1) {
-        allTransac[idx] = { ...allTransac[idx], fecha, tipo, categoria: cat, monto, descripcion: desc, responsabilidad: resp, fuente, moneda };
-      }
+    const jAdd = await rAdd.json();
+    if (jAdd.ok) {
+      allTransac = allTransac.filter(t => t.id !== idAEliminar);
+      allTransac.push({ id: jAdd.id, fecha, tipo, categoria: cat, monto, descripcion: desc, usuario: USUARIO, responsabilidad: resp, fuente, moneda });
       cerrarEditorTransaccion();
       filtrarTabla();
       cargarResumenMes();
       cargarEvolucion();
       showToast("✅ Transacción actualizada", "ok");
     } else {
-      msg.innerHTML = `<span style="color:var(--red)">❌ ${j.error || "Error al guardar"}</span>`;
+      msg.innerHTML = `<span style="color:var(--red)">❌ Error al guardar: ${jAdd.error || "?"} — Recargá la página para verificar.</span>`;
       btn.disabled = false;
       btn.textContent = "💾 Guardar cambios";
     }
