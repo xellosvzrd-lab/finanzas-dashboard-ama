@@ -2119,12 +2119,26 @@ async function iniciarApp() {
     cargarTodasTransacciones()
   ]);
 
+  _normalizarCategorias();
   setTipo("Gasto");
   cargarResumenMes();
   cargarEvolucion();
   filtrarTabla();
   inicializarSelectoresCompartidos();
   inicializarSelectoresPresupuesto();
+}
+
+// ─ Normaliza categorías de allTransac contra la lista canónica (case-insensitive)
+function _normalizarCategorias() {
+  if (!categGasto.length && !categIngreso.length) return;
+  const allCats = [...categGasto, ...categIngreso];
+  const lookup  = Object.fromEntries(allCats.map(c => [c.toLowerCase().trim(), c]));
+  allTransac.forEach(t => {
+    if (t.categoria) {
+      const norm = lookup[t.categoria.toLowerCase().trim()];
+      if (norm) t.categoria = norm;
+    }
+  });
 }
 
 // ─── CATEGORÍAS Y FUENTES ─────────────────────────────────────
@@ -2172,7 +2186,10 @@ async function cargarTodasTransacciones() {
   try {
     const r = await fetch(`${API_URL}?action=getTransacciones`);
     const j = await r.json();
-    if (j.ok) allTransac = j.data;
+    if (j.ok) {
+      allTransac = j.data;
+      _normalizarCategorias(); // unificar capitalización al cargar
+    }
   } catch(e) { console.warn("Error cargando transacciones:", e); }
 }
 
