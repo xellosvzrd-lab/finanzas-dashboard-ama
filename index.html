@@ -1487,7 +1487,7 @@
             </div>
             <div class="form-group">
               <label id="f-monto-label">Monto (ARS $)</label>
-              <input type="number" id="f-monto" placeholder="0.00" step="0.01" min="0">
+              <input type="text" inputmode="decimal" id="f-monto" placeholder="0,00">
             </div>
           </div>
           <div class="form-row">
@@ -1953,7 +1953,7 @@
         </div>
         <div class="edit-field">
           <label>Monto</label>
-          <input type="number" id="edit-monto" step="0.01" min="0" placeholder="0.00">
+          <input type="text" inputmode="decimal" id="edit-monto" placeholder="0,00">
         </div>
       </div>
       <div class="edit-field">
@@ -2875,7 +2875,7 @@ async function guardarEdicionTransaccion() {
   const fecha  = document.getElementById("edit-fecha").value;
   const tipo   = document.getElementById("edit-tipo").value;
   const moneda = document.getElementById("edit-moneda").value;
-  const monto  = parseFloat(document.getElementById("edit-monto").value);
+  const monto  = parsearDecimal(document.getElementById("edit-monto").value);
   const cat    = document.getElementById("edit-categoria").value;
   const resp   = document.getElementById("edit-responsabilidad").value;
   const fuente = document.getElementById("edit-fuente").value;
@@ -2968,7 +2968,7 @@ function setTipo(tipo) {
 
 async function guardarTransaccion() {
   const fecha   = document.getElementById("f-fecha").value;
-  const monto   = parseFloat(document.getElementById("f-monto").value);
+  const monto   = parsearDecimal(document.getElementById("f-monto").value);
   const cat     = document.getElementById("f-categoria").value;
   const desc    = document.getElementById("f-descripcion").value;
   const resp    = document.getElementById("f-responsabilidad")?.value || "Mío";
@@ -3064,7 +3064,7 @@ function agregarFilaRafaga() {
       </select>
     </td>
     <td><select class="rf-cat">${_optsCategRafaga("Gasto")}</select></td>
-    <td><input type="number" class="rf-monto" placeholder="0" step="0.01" min="0"></td>
+    <td><input type="text" inputmode="decimal" class="rf-monto" placeholder="0,00"></td>
     <td>
       <select class="rf-moneda">
         <option value="ARS">🇦🇷 ARS</option>
@@ -3106,7 +3106,7 @@ async function guardarRafaga() {
     const fecha  = tr.querySelector(".rf-fecha").value;
     const tipo   = tr.querySelector(".rf-tipo").value;
     const cat    = tr.querySelector(".rf-cat").value;
-    const monto  = parseFloat(tr.querySelector(".rf-monto").value);
+    const monto  = parsearDecimal(tr.querySelector(".rf-monto").value);
     const moneda = tr.querySelector(".rf-moneda").value;
     const desc   = tr.querySelector(".rf-desc").value.trim();
     const resp   = tr.querySelector(".rf-resp").value;
@@ -3577,7 +3577,7 @@ async function guardarPresupuesto() {
   const items = [];
   document.querySelectorAll("#pres-tbody .pres-input").forEach(inp => {
     const cat = inp.dataset.cat;
-    const val = parseFloat(inp.value) || 0;
+    const val = parsearDecimal(inp.value);
     presupuestoActual[cat] = val;
     if (val > 0) items.push({ categoria: cat, presupuesto: val });
   });
@@ -3845,21 +3845,16 @@ function renderPresupuesto() {
         ? `<span style="color:var(--text-muted);font-size:.78rem">Sin presupuesto</span>`
         : "";
 
-    const presMontoStr = sueldoEfectivo > 0 && pct_sueldo > 0
-      ? `<div style="color:var(--text-muted);font-size:.71rem;margin-top:.15rem">${fmt(pres)}</div>`
-      : "";
-
     return `<tr class="${rowCls}">
       <td><span class="pres-status-dot" style="background:${dotColor}"></span>${cat}</td>
       <td style="text-align:right">
         <div style="display:flex;align-items:center;justify-content:flex-end;gap:.3rem">
-          <input type="number" class="pres-input" data-cat="${cat}"
-                 value="${pct_sueldo > 0 ? pct_sueldo : ''}" placeholder="—"
-                 min="0" max="100" step="0.5" style="max-width:68px"
-                 oninput="actualizarKpisPres()">
+          <input type="text" inputmode="decimal" class="pres-input" data-cat="${cat}"
+                 value="${pct_sueldo > 0 ? String(pct_sueldo).replace('.', ',') : ''}" placeholder="—"
+                 style="max-width:68px" oninput="actualizarKpisPres()">
           <span style="color:var(--text-muted);font-size:.8rem">%</span>
         </div>
-        ${presMontoStr}
+        <span class="pres-monto-live" style="color:var(--text-muted);font-size:.71rem;display:block;text-align:right;margin-top:.1rem">${sueldoEfectivo > 0 && pct_sueldo > 0 ? fmt(pres) : ''}</span>
       </td>
       <td style="text-align:right">${gastoStr}</td>
       <td style="text-align:right">${restStr}</td>
@@ -3951,7 +3946,11 @@ function actualizarKpisPres() {
 
   let totalPctPres = 0;
   document.querySelectorAll("#pres-tbody .pres-input").forEach(inp => {
-    totalPctPres += parseFloat(inp.value) || 0;
+    const pct = parsearDecimal(inp.value);
+    totalPctPres += pct;
+    // Actualizar importe en vivo junto al input
+    const liveEl = inp.closest("td") && inp.closest("td").querySelector(".pres-monto-live");
+    if (liveEl) liveEl.textContent = (pct > 0 && sueldoEfectivo2 > 0) ? fmt((pct / 100) * sueldoEfectivo2) : "";
   });
   const totalPresARS2 = (totalPctPres / 100) * sueldoEfectivo2;
 
@@ -4392,6 +4391,10 @@ function fmtShort(n) {
 function fmtFecha(s) {
   const d = new Date(s + "T12:00:00");
   return d.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+}
+// Acepta tanto punto como coma como separador decimal (convención argentina: 1.234,56)
+function parsearDecimal(val) {
+  return parseFloat(String(val || 0).replace(',', '.')) || 0;
 }
 
 // ─── IMPORTAR PDF ─────────────────────────────────────────────
