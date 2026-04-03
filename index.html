@@ -294,6 +294,19 @@
   .kpi-value.balance-pos { color: var(--accent); }
   .kpi-value.balance-neg { color: var(--red); }
   .kpi-sub { font-size: .74rem; color: var(--text-muted); margin-top: .35rem; font-weight: 400; }
+  .kpi-trend { font-size: .7rem; font-weight: 700; margin-top: .2rem; }
+  .kpi-trend.up   { color: var(--green); }
+  .kpi-trend.down { color: var(--red); }
+  .kpi-trend.flat { color: var(--text-muted); }
+
+  /* ─── NAV SEPARATOR ─────────────────────────────────────── */
+  .nav-sep {
+    padding: .6rem 1.5rem .1rem;
+    font-size: .59rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .1em;
+    color: var(--text-muted); opacity: .45;
+    pointer-events: none; user-select: none;
+  }
 
   /* Grid de 4 KPIs (presupuesto) — en desktop 4 cols, tablet/mobile 2 */
   .kpi-grid-4 { grid-template-columns: repeat(4, 1fr); }
@@ -1260,15 +1273,18 @@
       <div class="nav-item" onclick="navegarA('transacciones')">
         <span class="nav-icon">📋</span> Transacciones
       </div>
+      <div class="nav-sep">Carga</div>
       <div class="nav-item" onclick="navegarA('nueva')">
         <span class="nav-icon">➕</span> Nueva
       </div>
+      <div class="nav-sep">Análisis</div>
       <div class="nav-item" onclick="navegarA('compartidos')">
         <span class="nav-icon">👫</span> Compartidos
       </div>
       <div class="nav-item" onclick="navegarA('presupuesto')">
         <span class="nav-icon">🎯</span> Presupuesto
       </div>
+      <div class="nav-sep">Config</div>
       <div class="nav-item" onclick="navegarA('config')">
         <span class="nav-icon">⚙️</span> Categorías y Fuentes
       </div>
@@ -1299,24 +1315,28 @@
             <div class="kpi-label">Ingresos</div>
             <div class="kpi-value income" id="kpi-ingresos">$0</div>
             <div class="kpi-sub" id="kpi-ingresos-sub">—</div>
+            <div class="kpi-trend" id="kpi-ingresos-trend"></div>
             <div class="kpi-spark" id="spark-ingresos"></div>
           </div>
           <div class="kpi-card">
             <div class="kpi-label">Gastos</div>
             <div class="kpi-value expense" id="kpi-gastos">$0</div>
             <div class="kpi-sub" id="kpi-gastos-sub">—</div>
+            <div class="kpi-trend" id="kpi-gastos-trend"></div>
             <div class="kpi-spark" id="spark-gastos"></div>
           </div>
           <div class="kpi-card">
             <div class="kpi-label">Balance</div>
             <div class="kpi-value balance-pos" id="kpi-balance">$0</div>
             <div class="kpi-sub" id="kpi-balance-sub">—</div>
+            <div class="kpi-trend" id="kpi-balance-trend"></div>
             <div class="kpi-spark" id="spark-balance"></div>
           </div>
           <div class="kpi-card">
             <div class="kpi-label">Ahorro</div>
             <div class="kpi-value" id="kpi-ahorro" style="color:var(--yellow)">0%</div>
             <div class="kpi-sub">del ingreso mensual</div>
+            <div class="kpi-trend" id="kpi-ahorro-trend"></div>
             <div class="kpi-spark" id="spark-ahorro"></div>
           </div>
         </div>
@@ -1446,11 +1466,18 @@
         </div>
         <div class="form-card">
           <div class="form-row">
-            <div class="form-group full">
+            <div class="form-group">
               <label>Tipo</label>
               <div class="tipo-toggle">
                 <button class="tipo-btn active-expense" id="btn-gasto"  onclick="setTipo('Gasto')">💸 Gasto</button>
                 <button class="tipo-btn"                id="btn-ingreso" onclick="setTipo('Ingreso')">💰 Ingreso</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Moneda</label>
+              <div class="moneda-toggle">
+                <button class="moneda-btn active-ars" id="btn-ars" onclick="setMoneda('ARS')">🇦🇷 ARS</button>
+                <button class="moneda-btn" id="btn-usd" onclick="setMoneda('USD')">🇺🇸 USD</button>
               </div>
             </div>
           </div>
@@ -1465,27 +1492,16 @@
             </div>
           </div>
           <div class="form-row">
-            <div class="form-group full">
-              <label>Moneda</label>
-              <div class="moneda-toggle">
-                <button class="moneda-btn active-ars" id="btn-ars" onclick="setMoneda('ARS')">🇦🇷 ARS — Pesos</button>
-                <button class="moneda-btn" id="btn-usd" onclick="setMoneda('USD')">🇺🇸 USD — Dólares</button>
-              </div>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group full">
+            <div class="form-group">
               <label>Categoría</label>
               <select id="f-categoria"></select>
             </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group full">
-              <label>Responsabilidad del gasto</label>
+            <div class="form-group">
+              <label>Responsabilidad</label>
               <select id="f-responsabilidad">
                 <option value="Mío">🙋 Mío</option>
                 <option value="Compartido">👫 Compartido</option>
-                <option value="De Daniel">💳 De Daniel (él me reintegra)</option>
+                <option value="De Daniel">💳 De Daniel</option>
               </select>
             </div>
           </div>
@@ -1500,7 +1516,7 @@
           <div class="form-row">
             <div class="form-group full">
               <label>Descripción (opcional)</label>
-              <textarea id="f-descripcion" placeholder="¿En qué gastaste o de dónde vino?"></textarea>
+              <textarea id="f-descripcion" placeholder="¿En qué gastaste o de dónde vino?" style="min-height:56px"></textarea>
             </div>
           </div>
           <div style="display:flex; gap:.75rem; margin-top:.5rem">
@@ -2299,6 +2315,61 @@ async function cargarResumenMes() {
     balSubParts.push(`Balance USD: ${fmtMoneda(Math.abs(balUSD),"USD")} ${balUSD >= 0 ? "✅" : "⚠️"}`);
   }
   document.getElementById("kpi-balance-sub").textContent = balSubParts.join(" · ");
+
+  // ── Tendencia vs mes anterior ──────────────────────────────
+  {
+    const prevMesNum  = parseInt(mes) === 1 ? 12 : parseInt(mes) - 1;
+    const prevAnioNum = parseInt(mes) === 1 ? parseInt(anio) - 1 : parseInt(anio);
+    const MESES_CORTO = ["","ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+    const prevLabel   = MESES_CORTO[prevMesNum];
+
+    const prevDataAll = allTransac.filter(t => {
+      const d = new Date(t.fecha + "T12:00:00");
+      return (d.getMonth() + 1) === prevMesNum && d.getFullYear() === prevAnioNum;
+    });
+    const prevDatos = prevDataAll.filter(t => (t.usuario || "Ama") === USUARIO);
+
+    const prevIngresos = prevDatos.filter(t => t.tipo === "Ingreso" && !esTransferencia(t)
+      && CATS_INGRESO_ARS.includes(t.categoria) && (t.moneda || "ARS") === "ARS")
+      .reduce((s,t) => s + Math.abs(Number(t.monto)), 0);
+
+    const CATS_EXCLUIR_PREV = [...CATS_INGRESO_ARS, ...CATS_INGRESO_USD, "Cambio"];
+    const prevAllExpCats = [...new Set(prevDataAll
+      .filter(t => !esTransferencia(t) && !CATS_EXCLUIR_PREV.includes(t.categoria))
+      .map(t => t.categoria))];
+    const prevCatMapARS = {};
+    prevAllExpCats.forEach(cat => {
+      const gp = (arr, tipo, resp) => arr.filter(t =>
+        !esTransferencia(t) && t.tipo === tipo && t.categoria === cat
+        && (resp === "Mío" ? (t.responsabilidad || "Mío") === "Mío" : t.responsabilidad === resp)
+        && (t.moneda || "ARS") === "ARS"
+      ).reduce((s,t) => s + Math.abs(Number(t.monto)), 0);
+      const real =
+        Math.max(0, gp(prevDatos,    "Gasto","Mío")       - gp(prevDatos,   "Ingreso","Mío"))
+      + Math.max(0, gp(prevDataAll,  "Gasto","Compartido")- gp(prevDataAll, "Ingreso","Compartido")) * 0.5
+      + Math.max(0, gp(prevDataAll,  "Gasto","De Ama")    - gp(prevDataAll, "Ingreso","De Ama"));
+      if (real > 0) prevCatMapARS[cat] = real;
+    });
+    const prevGastos  = Object.values(prevCatMapARS).reduce((s,v) => s+v, 0);
+    const prevBalance = prevIngresos - prevGastos;
+    const prevAhorro  = prevIngresos > 0 ? (prevBalance / prevIngresos * 100) : 0;
+
+    const _tendencia = (cur, prev, label, invertirColor) => {
+      if (!prev && !cur) return "";
+      if (!prev) return `<span class="kpi-trend flat">— primer mes con datos</span>`;
+      const pct  = Math.round((cur - prev) / Math.abs(prev) * 100);
+      const sube = pct > 0;
+      const cls  = pct === 0 ? "flat" : (sube !== invertirColor ? "up" : "down");
+      const icon = pct === 0 ? "=" : sube ? "▲" : "▼";
+      return `<span class="kpi-trend ${cls}">${icon} ${pct > 0 ? "+" : ""}${pct}% vs ${label}</span>`;
+    };
+
+    document.getElementById("kpi-ingresos-trend").innerHTML = _tendencia(ingresos, prevIngresos, prevLabel, false);
+    document.getElementById("kpi-gastos-trend").innerHTML   = _tendencia(gastos,   prevGastos,   prevLabel, true);
+    document.getElementById("kpi-balance-trend").innerHTML  = _tendencia(balance,  prevBalance,  prevLabel, false);
+    const ahorroNum = parseFloat(ahorro);
+    document.getElementById("kpi-ahorro-trend").innerHTML   = _tendencia(ahorroNum, prevAhorro,  prevLabel, false);
+  }
 
   // KPI "Daniel te debe" — acumulado total (no filtrado por mes)
   const amaDebeTotalMes = allTransac
