@@ -3553,7 +3553,7 @@ async function cargarPresupuesto() {
   const anio = document.getElementById("pres-anio").value;
   // Actualizar tipo de cambio MEP en paralelo con el presupuesto guardado
   const [presRes] = await Promise.allSettled([
-    fetch(`${API_URL}?action=getPresupuesto&mes=${mes}&anio=${anio}`),
+    fetch(`${API_URL}?action=getPresupuesto&mes=${mes}&anio=${anio}&usuario=${encodeURIComponent(USUARIO)}`),
     fetchTipoCambioMEP()
   ]);
   try {
@@ -3586,7 +3586,7 @@ async function guardarPresupuesto() {
   try {
     const r = await fetch(API_URL, {
       method: "POST",
-      body: JSON.stringify({ action: "savePresupuesto", mes, anio, items })
+      body: JSON.stringify({ action: "savePresupuesto", mes, anio, items, usuario: USUARIO })
     });
     const j = await r.json();
     if (j.ok) {
