@@ -3002,12 +3002,19 @@ async function guardarTransaccion() {
       cargarResumenMes();
       cargarEvolucion();
       filtrarTabla();
-      // Limpiar form
+      // Limpiar formulario completo
       document.getElementById("f-monto").value = "";
       document.getElementById("f-descripcion").value = "";
       document.getElementById("f-fecha").valueAsDate = new Date();
+      const selCat  = document.getElementById("f-categoria");
+      const selResp = document.getElementById("f-responsabilidad");
+      const selFte  = document.getElementById("f-fuente");
+      if (selCat)  selCat.selectedIndex  = 0;
+      if (selResp) selResp.selectedIndex = 0;
+      if (selFte)  selFte.selectedIndex  = 0;
       showToast("✅ Transacción guardada", "ok");
       msg.innerHTML = '<span style="color:var(--green)">✅ Guardado correctamente.</span>';
+      setTimeout(() => { msg.innerHTML = ""; }, 3000);
     } else {
       msg.innerHTML = `<span style="color:var(--red)">❌ ${j.error}</span>`;
     }
