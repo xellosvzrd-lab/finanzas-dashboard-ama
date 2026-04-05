@@ -1,6 +1,6 @@
 # Proyecto Finanzas Personales — Memoria del Proyecto
 
-> Archivo de contexto para Claude. Última actualización: abril 2026.
+> Archivo de contexto para Claude. Última actualización: 2026-04-04.
 
 ---
 
@@ -23,7 +23,7 @@
 ### Dashboard de Daniel
 - **Repo:** `xellosvzrd-lab/finanzas-dashboard`
 - **URL:** GitHub Pages del repo anterior
-- **Archivo:** `/sessions/epic-peaceful-dirac/finanzas-dashboard/index.html` (~4555 líneas)
+- **Archivo:** `index.html` (~4562 líneas) — repo local en `~/Documents/proyectosclaude/finanzas-dashboard-live/`
 - **Usuario fijo:** `USUARIO = "Daniel"`
 - **Responsabilidad opciones:** `["Mío","Compartido","De Ama"]`
 - **No tiene modo claro/oscuro** — siempre oscuro (`:root` dark only)
@@ -32,7 +32,7 @@
 ### Dashboard de Ama
 - **Repo:** `xellosvzrd-lab/finanzas-dashboard-ama`
 - **URL:** GitHub Pages del repo anterior
-- **Archivo:** `/sessions/epic-peaceful-dirac/ama-dashboard/index.html` (~4682 líneas)
+- **Archivo:** `index.html` (~4689 líneas) — repo local en `~/Documents/proyectosclaude/finanzas-dashboard-ama-live/`
 - **Usuario fijo:** `USUARIO = "Ama"`
 - **Responsabilidad opciones:** `["Mío","Compartido","De Daniel"]`
 - **Tiene modo claro/oscuro** — `[data-theme="light"]` con override de variables CSS
@@ -197,6 +197,9 @@ Usa **variables CSS** (`var(--card)`, `var(--border)`, `var(--bg2)`) para respet
 | `dcbf033` | Ama | ídem |
 | `4a8d474` | Daniel | presupuesto separado por usuario (GET+POST con usuario) |
 | `67b9390` | Ama | ídem |
+| `4a8d474` | Daniel | presupuesto separado por usuario (GET+POST con usuario) |
+| `5d517eb` | Daniel | fix: mensaje de guardado temporal + limpiar formulario tras guardar |
+| `31cb378` | Ama | fix: mensaje de guardado temporal + limpiar formulario tras guardar |
 
 ---
 
