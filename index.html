@@ -797,10 +797,31 @@
     box-shadow: var(--shadow); z-index: 1000;
     transform: translateY(10px); opacity: 0; transition: all .22s ease;
     display: flex; align-items: center; gap: .5rem; font-family: inherit;
+    overflow: hidden;
   }
   .toast.show { transform: translateY(0); opacity: 1; }
   .toast.toast-ok  { border-left: 3px solid var(--green); }
   .toast.toast-err { border-left: 3px solid var(--red); }
+  .toast-undo-bar {
+    position: absolute; bottom: 0; left: 0; height: 2px;
+    background: var(--accent); width: 100%;
+    animation: _toastProg 5s linear forwards;
+  }
+  @keyframes _toastProg { to { width: 0; } }
+  .toast-undo-btn {
+    background: none; border: 1px solid var(--border2);
+    color: var(--accent); border-radius: 6px;
+    padding: .22rem .65rem; cursor: pointer;
+    font-size: .82rem; font-family: inherit;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .toast-undo-btn:hover { background: var(--accent-dim); }
+
+  /* ─── SORT ──────────────────────────────────────────────── */
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable:hover { color: var(--accent); }
+  .sort-ind { font-size: .68rem; margin-left: .2rem; opacity: .35; }
+  th.sort-active .sort-ind { opacity: 1; color: var(--accent); }
 
   /* ─── LOADING ───────────────────────────────────────────── */
   .loading {
@@ -1495,13 +1516,13 @@
             <table>
               <thead>
                 <tr>
-                  <th>Fecha</th>
-                  <th class="col-hide-xs">Tipo</th>
-                  <th>Categoría</th>
+                  <th class="sortable sort-active" id="sort-th-fecha" onclick="setSortCol('fecha')">Fecha <span class="sort-ind" id="sort-ind-fecha">▼</span></th>
+                  <th class="col-hide-xs sortable" id="sort-th-tipo" onclick="setSortCol('tipo')">Tipo <span class="sort-ind" id="sort-ind-tipo"></span></th>
+                  <th class="sortable" id="sort-th-categoria" onclick="setSortCol('categoria')">Categoría <span class="sort-ind" id="sort-ind-categoria"></span></th>
                   <th class="col-hide-sm">Fuente</th>
                   <th class="col-hide-sm">¿De quién es?</th>
                   <th class="col-hide-sm">Descripción</th>
-                  <th style="text-align:right">Monto</th>
+                  <th class="sortable" id="sort-th-monto" onclick="setSortCol('monto')" style="text-align:right">Monto <span class="sort-ind" id="sort-ind-monto"></span></th>
                   <th class="col-hide-xs">Moneda</th>
                   <th></th>
                 </tr>
@@ -2125,6 +2146,13 @@ const PALETTE = [
   "#74b9ff","#e17055"
 ];
 
+// ─── SORT STATE ───────────────────────────────────────────────
+let sortCol = "fecha";
+let sortDir = -1; // -1 = desc (más reciente primero), 1 = asc
+
+// ─── PENDING DELETE (undo) ────────────────────────────────────
+let _pendingDelete = null; // { id, timeout }
+
 // ─── TEMA CLARO / OSCURO ──────────────────────────────────────
 function applyTheme(isLight) {
   document.documentElement.setAttribute("data-theme", isLight ? "light" : "dark");
@@ -2279,6 +2307,7 @@ async function cargarCategorias() {
         filFuente.innerHTML = '<option value="">Todas las fuentes</option>' +
           categFuentes.map(f => `<option value="${f}">${f}</option>`).join("");
       }
+      _restaurarFiltros();
     }
   } catch(e) { console.warn("No se pudieron cargar categorías:", e); }
 }
@@ -2298,8 +2327,12 @@ async function cargarTodasTransacciones() {
 // ─── SELECTORES FECHA ─────────────────────────────────────────
 const SEL_MES_KEY  = "fp_ama_sel_mes";
 const SEL_ANIO_KEY = "fp_ama_sel_anio";
-const FIL_MES_KEY  = "fp_ama_fil_mes";
-const FIL_ANIO_KEY = "fp_ama_fil_anio";
+const FIL_MES_KEY    = "fp_ama_fil_mes";
+const FIL_ANIO_KEY   = "fp_ama_fil_anio";
+const FIL_TIPO_KEY   = "fp_ama_fil_tipo";
+const FIL_FUENTE_KEY = "fp_ama_fil_fuente";
+const FIL_RESP_KEY   = "fp_ama_fil_resp";
+const FIL_BUSCAR_KEY = "fp_ama_fil_buscar";
 
 function guardarSelFecha() {
   try {
@@ -2308,6 +2341,65 @@ function guardarSelFecha() {
     localStorage.setItem(FIL_MES_KEY,  document.getElementById("fil-mes")?.value || "");
     localStorage.setItem(FIL_ANIO_KEY, document.getElementById("fil-anio")?.value || "");
   } catch(e) {}
+}
+
+function _guardarFiltros() {
+  try {
+    localStorage.setItem(FIL_TIPO_KEY,   document.getElementById("fil-tipo")?.value   || "");
+    localStorage.setItem(FIL_FUENTE_KEY, document.getElementById("fil-fuente")?.value || "");
+    localStorage.setItem(FIL_RESP_KEY,   document.getElementById("fil-resp")?.value   || "");
+    localStorage.setItem(FIL_BUSCAR_KEY, document.getElementById("fil-buscar")?.value || "");
+  } catch(e) {}
+}
+
+function _restaurarFiltros() {
+  try {
+    const tipo   = localStorage.getItem(FIL_TIPO_KEY);
+    const fuente = localStorage.getItem(FIL_FUENTE_KEY);
+    const resp   = localStorage.getItem(FIL_RESP_KEY);
+    const buscar = localStorage.getItem(FIL_BUSCAR_KEY);
+    if (tipo)   { const el = document.getElementById("fil-tipo");   if (el) el.value = tipo; }
+    if (fuente) { const el = document.getElementById("fil-fuente"); if (el) el.value = fuente; }
+    if (resp)   { const el = document.getElementById("fil-resp");   if (el) el.value = resp; }
+    if (buscar) { const el = document.getElementById("fil-buscar"); if (el) el.value = buscar; }
+  } catch(e) {}
+}
+
+// ─── SORT ─────────────────────────────────────────────────────
+function setSortCol(col) {
+  if (sortCol === col) { sortDir = -sortDir; }
+  else { sortCol = col; sortDir = (col === "monto") ? -1 : (col === "fecha" ? -1 : 1); }
+  filtrarTabla();
+}
+
+function _sortarDatos(datos) {
+  return [...datos].sort((a, b) => {
+    let va, vb;
+    switch (sortCol) {
+      case "monto":     va = Math.abs(Number(a.monto));  vb = Math.abs(Number(b.monto));  break;
+      case "categoria": va = a.categoria.toLowerCase();  vb = b.categoria.toLowerCase();  break;
+      case "tipo":      va = a.tipo;                     vb = b.tipo;                     break;
+      default:          va = new Date(a.fecha);          vb = new Date(b.fecha);
+    }
+    if (va < vb) return -sortDir;
+    if (va > vb) return sortDir;
+    return 0;
+  });
+}
+
+function _actualizarSortUI() {
+  ["fecha","tipo","categoria","monto"].forEach(col => {
+    const th  = document.getElementById("sort-th-" + col);
+    const ind = document.getElementById("sort-ind-" + col);
+    if (!th || !ind) return;
+    if (col === sortCol) {
+      th.classList.add("sort-active");
+      ind.textContent = sortDir === -1 ? "▼" : "▲";
+    } else {
+      th.classList.remove("sort-active");
+      ind.textContent = "";
+    }
+  });
 }
 
 function poblarSelectoresFecha() {
@@ -2459,6 +2551,20 @@ async function cargarResumenMes() {
     const balUSD = ingresosUSD - gastosNetUSD;
     balSubParts.push(`Balance USD: ${fmtMoneda(Math.abs(balUSD),"USD")} ${balUSD >= 0 ? "✅" : "⚠️"}`);
   }
+  // Proyección al cierre del mes — solo mes en curso, días 3–26
+  {
+    const hoy = new Date();
+    const mesVista = parseInt(mes), anioVista = parseInt(anio);
+    const dia = hoy.getDate();
+    const diasEnMes = new Date(anioVista, mesVista, 0).getDate();
+    if (mesVista === hoy.getMonth() + 1 && anioVista === hoy.getFullYear()
+        && dia >= 3 && dia < diasEnMes - 3 && gastos > 0) {
+      const proyGastos  = Math.round((gastos / dia) * diasEnMes);
+      const proyBalance = ingresos - proyGastos;
+      const signo = proyBalance >= 0 ? "+" : "";
+      balSubParts.push(`Proyección al ${diasEnMes}: ${signo}${fmt(proyBalance)}`);
+    }
+  }
   document.getElementById("kpi-balance-sub").textContent = balSubParts.join(" · ");
 
   // ── Tendencia vs mes anterior ──────────────────────────────
@@ -2529,7 +2635,8 @@ async function cargarResumenMes() {
 
   renderCatChart(sortedCatsARS);
   renderDonutChart(ingresos, gastos, balance);
-  renderTopGastos(sortedCatsARS, sortedCatsUSD, datos);
+  const _salBaseAma = ingresos + (ingresosUSD * (tipoCambioMEP || 0));
+  renderTopGastos(sortedCatsARS, sortedCatsUSD, datos, _salBaseAma);
 
   // Sparklines — últimos 6 meses
   renderSparklines(parseInt(mes), parseInt(anio));
@@ -2620,7 +2727,7 @@ function renderDonutChart(ingresos, gastos, balance) {
 }
 
 // ─── TOP GASTOS ───────────────────────────────────────────────
-function renderTopGastos(sortedCatsARS, sortedCatsUSD, datos) {
+function renderTopGastos(sortedCatsARS, sortedCatsUSD, datos, salarioBase) {
   const el = document.getElementById("top-gastos-list");
   if (!sortedCatsARS.length && !sortedCatsUSD.length) {
     el.innerHTML = '<div class="empty-state">Sin gastos este mes</div>';
@@ -2633,6 +2740,19 @@ function renderTopGastos(sortedCatsARS, sortedCatsUSD, datos) {
     const total  = cats.reduce((s,[,v]) => s + v, 0);
     return cats.map(([cat, val], i) => {
       const pct = total > 0 ? (val / total * 100).toFixed(1) : 0;
+      // Badge de ejecución vs presupuesto (solo ARS, si hay presupuesto cargado)
+      let presTag = "";
+      if (moneda === "ARS" && salarioBase > 0) {
+        const pctPres = presupuestoActual[cat] || 0;
+        if (pctPres > 0) {
+          const montoPres = (pctPres / 100) * salarioBase;
+          const ejec = Math.round(val / montoPres * 100);
+          const color  = ejec >= 100 ? "var(--red)"    : ejec >= 80 ? "var(--yellow)"    : "var(--green)";
+          const dimBg  = ejec >= 100 ? "var(--red-dim)" : ejec >= 80 ? "var(--yellow-dim)" : "var(--green-dim)";
+          const label  = ejec >= 100 ? `⚠️ ${ejec}%` : `${ejec}%`;
+          presTag = `<span style="background:${dimBg};color:${color};border-radius:4px;padding:.1rem .35rem;font-size:.67rem;font-weight:700;margin-left:.35rem;white-space:nowrap;">${label} pres.</span>`;
+        }
+      }
       const txsCat = datos
         ? datos.filter(t => t.categoria === cat && !esTransferencia(t) && (t.moneda || "ARS").toUpperCase() === moneda)
         : [];
@@ -2661,7 +2781,7 @@ function renderTopGastos(sortedCatsARS, sortedCatsUSD, datos) {
       <div style="margin-bottom:.9rem;">
         <div style="display:flex;justify-content:space-between;margin-bottom:.3rem;font-size:.88rem;cursor:pointer;"
              onclick="document.getElementById('${drillId}').style.display=document.getElementById('${drillId}').style.display==='none'?'block':'none'">
-          <span><span style="color:${PALETTE[i%PALETTE.length]};margin-right:.4rem;">●</span>${cat}
+          <span><span style="color:${PALETTE[i%PALETTE.length]};margin-right:.4rem;">●</span>${cat}${presTag}
             <span style="color:var(--text-muted);font-size:.72rem;margin-left:.3rem;">(${txsCat.length} tx) ▾</span>
           </span>
           <span style="color:var(--text-muted)">${fmtVal(val)} <span style="color:var(--red)">(${pct}%)</span></span>
@@ -2860,6 +2980,7 @@ function filtrarTabla() {
     catsSelec.size === document.querySelectorAll("#fil-cat-options input").length;
 
   let datos = allTransac.filter(t => {
+    if (_pendingDelete && t.id === _pendingDelete.id) return false;
     const d = new Date(t.fecha + "T12:00:00");
     const okUser   = t.usuario === USUARIO;
     const okMes    = !mes    || (d.getMonth()+1) === parseInt(mes);
@@ -2874,7 +2995,9 @@ function filtrarTabla() {
     return okUser && okMes && okAnio && okTipo && okCat && okFuente && okResp && okBus;
   });
 
-  datos.sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+  datos = _sortarDatos(datos);
+  _actualizarSortUI();
+  _guardarFiltros();
 
   // ── Subtotales ──
   const subIngARS = datos.filter(t=>t.tipo==="Ingreso"&&(t.moneda||"ARS")==="ARS").reduce((s,t)=>s+Math.abs(Number(t.monto)),0);
@@ -2918,6 +3041,7 @@ function filtrarTabla() {
       <td style="text-align:right;font-weight:600;white-space:nowrap;color:${t.tipo==="Ingreso"?"var(--green)":"var(--red)"}">${fmtMoneda(t.monto, mon)}</td>
       <td class="col-hide-xs">${monBadge}</td>
       <td style="white-space:nowrap">
+        <button class="delete-btn" onclick="duplicarTransaccion('${t.id}')" title="Duplicar" style="margin-right:.2rem">📋</button>
         <button class="delete-btn" onclick="abrirEditorTransaccion('${t.id}')" title="Editar" style="margin-right:.2rem">✏️</button>
         <button class="delete-btn" onclick="eliminarTransaccion('${t.id}')" title="Eliminar">🗑️</button>
       </td>
@@ -2972,27 +3096,77 @@ function exportarCSV() {
   showToast(`✅ ${datos.length} transacciones exportadas`, "ok");
 }
 
-// ─── ELIMINAR ─────────────────────────────────────────────────
-async function eliminarTransaccion(id) {
-  if (!confirm("¿Eliminar esta transacción?")) return;
+// ─── ELIMINAR CON UNDO ────────────────────────────────────────
+function eliminarTransaccion(id) {
+  if (_pendingDelete) {
+    clearTimeout(_pendingDelete.timeout);
+    _ejecutarDelete(_pendingDelete.id);
+  }
+  _pendingDelete = { id, timeout: setTimeout(() => _ejecutarDelete(id), 5000) };
+  filtrarTabla();
+  _showToastUndo("🗑️ Transacción eliminada", () => _cancelarDelete(id));
+}
+
+function _cancelarDelete(id) {
+  if (_pendingDelete && _pendingDelete.id === id) {
+    clearTimeout(_pendingDelete.timeout);
+    _pendingDelete = null;
+  }
+  filtrarTabla();
+  showToast("↩️ Eliminación cancelada", "ok");
+}
+
+async function _ejecutarDelete(id) {
+  if (_pendingDelete && _pendingDelete.id === id) _pendingDelete = null;
+  allTransac = allTransac.filter(t => t.id !== id);
+  guardarCacheTransac();
+  filtrarTabla();
+  cargarResumenMes();
+  cargarEvolucion();
   try {
     const r = await fetch(API_URL, {
       method: "POST",
       body: JSON.stringify({ action: "deleteTransaccion", id })
     });
     const j = await r.json();
-    if (j.ok) {
-      allTransac = allTransac.filter(t => t.id !== id);
-      filtrarTabla();
-      cargarResumenMes();
-      cargarEvolucion();
-      showToast("✅ Transacción eliminada", "ok");
-    } else {
-      showToast("❌ " + j.error, "err");
-    }
+    if (!j.ok) showToast("❌ Error al eliminar: " + (j.error || "?"), "err");
   } catch(e) {
-    showToast("❌ Error de conexión", "err");
+    showToast("❌ Error de conexión al eliminar", "err");
   }
+}
+
+function _showToastUndo(msg, onUndo) {
+  const t = document.getElementById("toast");
+  t.innerHTML = `<span style="flex:1">${msg}</span><button class="toast-undo-btn">↩ Deshacer</button><div class="toast-undo-bar"></div>`;
+  t.className = "toast toast-err show";
+  const tid = setTimeout(() => { t.className = "toast"; }, 5400);
+  t.querySelector(".toast-undo-btn").onclick = () => {
+    clearTimeout(tid);
+    t.className = "toast";
+    onUndo();
+  };
+}
+
+// ─── DUPLICAR TRANSACCIÓN ─────────────────────────────────────
+function duplicarTransaccion(id) {
+  const t = allTransac.find(x => x.id === id);
+  if (!t) return;
+  navegarA("nueva");
+  setTimeout(() => {
+    setTipo(t.tipo);
+    setMoneda(t.moneda || "ARS");
+    document.getElementById("f-fecha").valueAsDate = new Date();
+    document.getElementById("f-monto").value       = t.monto;
+    document.getElementById("f-descripcion").value = t.descripcion || "";
+    const selCat  = document.getElementById("f-categoria");
+    const selResp = document.getElementById("f-responsabilidad");
+    const selFte  = document.getElementById("f-fuente");
+    if (selCat)  selCat.value  = t.categoria;
+    if (selResp) selResp.value = t.responsabilidad || "Mío";
+    if (selFte)  selFte.value  = t.fuente || "";
+    document.getElementById("f-monto").focus();
+  }, 30);
+  showToast("📋 Duplicado — revisá los datos antes de guardar", "ok");
 }
 
 // ─── EDITAR TRANSACCIÓN ───────────────────────────────────────
@@ -3672,17 +3846,22 @@ function cargarAnual() {
   const CATS_INGRESO_ARS = ["Sueldo", "Otros Ingresos", "Intereses"];
   const MESES_LABEL = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 
-  const txsAnio = allTransac.filter(t => {
+  // Transacciones ARS del año (para chart + tabla ARS)
+  const txsAnioARS = allTransac.filter(t => {
     const d = new Date(t.fecha + "T12:00:00");
-    return d.getFullYear() === anio
-      && t.usuario === USUARIO
-      && (t.moneda || "ARS") === "ARS";
+    return d.getFullYear() === anio && t.usuario === USUARIO && (t.moneda || "ARS") === "ARS";
+  });
+
+  // Transacciones USD del año (para tabla USD)
+  const txsAnioUSD = allTransac.filter(t => {
+    const d = new Date(t.fecha + "T12:00:00");
+    return d.getFullYear() === anio && t.usuario === USUARIO && (t.moneda || "ARS") === "USD";
   });
 
   const byMes = {};
   for (let m = 1; m <= 12; m++) byMes[m] = { ingresos: 0, gastos: 0, cats: {} };
 
-  txsAnio.forEach(t => {
+  txsAnioARS.forEach(t => {
     const m = new Date(t.fecha + "T12:00:00").getMonth() + 1;
     const monto = Math.abs(Number(t.monto));
     if (t.tipo === "Ingreso" && CATS_INGRESO_ARS.includes(t.categoria)) {
@@ -3693,18 +3872,28 @@ function cargarAnual() {
     }
   });
 
-  const totalIng  = Object.values(byMes).reduce((s,m) => s + m.ingresos, 0);
-  const totalGas  = Object.values(byMes).reduce((s,m) => s + m.gastos,   0);
-  const balance   = totalIng - totalGas;
+  const totalIng   = Object.values(byMes).reduce((s,m) => s + m.ingresos, 0);
+  const totalGas   = Object.values(byMes).reduce((s,m) => s + m.gastos,   0);
+  const balance    = totalIng - totalGas;
   const tasaAhorro = totalIng > 0 ? ((balance / totalIng) * 100) : 0;
-  const kpiColor  = (v) => v >= 0 ? "var(--green)" : "var(--red)";
+  const kpiColor   = (v) => v >= 0 ? "var(--green)" : "var(--red)";
 
-  document.getElementById("anual-kpis").innerHTML = `
-    <div class="kpi-card"><div class="kpi-label">Ingresos ${anio}</div><div class="kpi-value" style="color:var(--green)">${fmt(totalIng)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Gastos ${anio}</div><div class="kpi-value" style="color:var(--red)">${fmt(totalGas)}</div></div>
+  // USD totals
+  const totalIngUSD = txsAnioUSD.filter(t => t.tipo === "Ingreso").reduce((s,t) => s + Math.abs(Number(t.monto)), 0);
+  const totalGasUSD = txsAnioUSD.filter(t => t.tipo === "Gasto").reduce((s,t) => s + Math.abs(Number(t.monto)), 0);
+
+  const kpiEl = document.getElementById("anual-kpis");
+  let kpiHtml = `
+    <div class="kpi-card"><div class="kpi-label">Ingresos ${anio} (ARS)</div><div class="kpi-value" style="color:var(--green)">${fmt(totalIng)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Gastos ${anio} (ARS)</div><div class="kpi-value" style="color:var(--red)">${fmt(totalGas)}</div></div>
     <div class="kpi-card"><div class="kpi-label">Balance neto</div><div class="kpi-value" style="color:${kpiColor(balance)}">${balance>=0?"+":""}${fmt(balance)}</div></div>
     <div class="kpi-card"><div class="kpi-label">Tasa de ahorro</div><div class="kpi-value" style="color:${kpiColor(tasaAhorro)}">${tasaAhorro.toFixed(1)}%</div></div>
   `;
+  if (totalGasUSD > 0 || totalIngUSD > 0) {
+    const balUSD = totalIngUSD - totalGasUSD;
+    kpiHtml += `<div class="kpi-card"><div class="kpi-label">Balance USD ${anio}</div><div class="kpi-value" style="color:${kpiColor(balUSD)}">${balUSD>=0?"+":""}${fmtMoneda(Math.abs(balUSD),"USD")}</div><div class="kpi-sub" style="font-size:.74rem;color:var(--text-muted);margin-top:.2rem;">↑ ${fmtMoneda(totalIngUSD,"USD")} · ↓ ${fmtMoneda(totalGasUSD,"USD")}</div></div>`;
+  }
+  kpiEl.innerHTML = kpiHtml;
 
   const ctx = document.getElementById("chart-anual-barras");
   if (chartAnualBarras) chartAnualBarras.destroy();
@@ -3712,9 +3901,9 @@ function cargarAnual() {
     data: {
       labels: MESES_LABEL,
       datasets: [
-        { type:"bar", label:"Ingresos", data: Object.values(byMes).map(m=>m.ingresos),
+        { type:"bar", label:"Ingresos ARS", data: Object.values(byMes).map(m=>m.ingresos),
           backgroundColor:"rgba(52,211,153,0.7)", borderRadius:5 },
-        { type:"bar", label:"Gastos",   data: Object.values(byMes).map(m=>m.gastos),
+        { type:"bar", label:"Gastos ARS",   data: Object.values(byMes).map(m=>m.gastos),
           backgroundColor:"rgba(248,113,113,0.7)", borderRadius:5 }
       ]
     },
@@ -3728,6 +3917,7 @@ function cargarAnual() {
     }
   });
 
+  // Tabla ARS
   const catTotals = {}, catMeses = {};
   for (let m = 1; m <= 12; m++) {
     Object.entries(byMes[m].cats).forEach(([cat, total]) => {
@@ -3736,23 +3926,61 @@ function cargarAnual() {
     });
   }
   const sortedCats = Object.entries(catTotals).sort((a,b) => b[1]-a[1]);
+
+  // Tabla USD
+  const catTotalsUSD = {}, catMesesUSD = {};
+  txsAnioUSD.filter(t => t.tipo === "Gasto").forEach(t => {
+    const m = new Date(t.fecha + "T12:00:00").getMonth() + 1;
+    const monto = Math.abs(Number(t.monto));
+    catTotalsUSD[t.categoria] = (catTotalsUSD[t.categoria] || 0) + monto;
+    if (!catMesesUSD[t.categoria]) catMesesUSD[t.categoria] = new Set();
+    catMesesUSD[t.categoria].add(m);
+  });
+  const sortedCatsUSD = Object.entries(catTotalsUSD).sort((a,b) => b[1]-a[1]);
+
   const tbody = document.getElementById("anual-tbody");
-  if (!sortedCats.length) {
+  if (!sortedCats.length && !sortedCatsUSD.length) {
     tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Sin datos para ${anio}</div></td></tr>`;
     return;
   }
-  tbody.innerHTML = sortedCats.map(([cat, total]) => {
-    const meses = catMeses[cat];
-    const prom  = total / meses;
-    const pct   = totalGas > 0 ? ((total / totalGas) * 100).toFixed(1) : "0.0";
-    return `<tr>
-      <td>${cat}</td>
-      <td style="text-align:right;font-weight:600;color:var(--red)">${fmt(total)}</td>
-      <td style="text-align:right;color:var(--text-muted)">${meses}</td>
-      <td style="text-align:right;color:var(--text-muted)">${fmt(prom)}</td>
-      <td style="text-align:right;color:var(--text-muted)">${pct}%</td>
-    </tr>`;
-  }).join("");
+
+  const sepStyle = `style="background:var(--bg2);padding:.35rem .8rem;font-size:.73rem;color:var(--text-muted);font-weight:600;letter-spacing:.05em;"`;
+  let html = "";
+
+  if (sortedCats.length) {
+    if (sortedCatsUSD.length) html += `<tr><td colspan="5" ${sepStyle}>🇦🇷 PESOS (ARS)</td></tr>`;
+    html += sortedCats.map(([cat, total]) => {
+      const meses = catMeses[cat];
+      const prom  = total / meses;
+      const pct   = totalGas > 0 ? ((total / totalGas) * 100).toFixed(1) : "0.0";
+      return `<tr>
+        <td>${cat}</td>
+        <td style="text-align:right;font-weight:600;color:var(--red)">${fmt(total)}</td>
+        <td style="text-align:right;color:var(--text-muted)">${meses}</td>
+        <td style="text-align:right;color:var(--text-muted)">${fmt(prom)}</td>
+        <td style="text-align:right;color:var(--text-muted)">${pct}%</td>
+      </tr>`;
+    }).join("");
+  }
+
+  if (sortedCatsUSD.length) {
+    if (sortedCats.length) html += `<tr><td colspan="5" style="height:.4rem;background:var(--bg);padding:0;"></td></tr>`;
+    html += `<tr><td colspan="5" ${sepStyle}>🇺🇸 DÓLARES (USD)</td></tr>`;
+    html += sortedCatsUSD.map(([cat, total]) => {
+      const meses = catMesesUSD[cat].size;
+      const prom  = total / meses;
+      const pct   = totalGasUSD > 0 ? ((total / totalGasUSD) * 100).toFixed(1) : "0.0";
+      return `<tr>
+        <td>${cat}</td>
+        <td style="text-align:right;font-weight:600;color:var(--red)">${fmtMoneda(total,"USD")}</td>
+        <td style="text-align:right;color:var(--text-muted)">${meses}</td>
+        <td style="text-align:right;color:var(--text-muted)">${fmtMoneda(prom,"USD")}</td>
+        <td style="text-align:right;color:var(--text-muted)">${pct}%</td>
+      </tr>`;
+    }).join("");
+  }
+
+  tbody.innerHTML = html;
 }
 
 function navegarA(pagina) {
