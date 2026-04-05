@@ -1290,6 +1290,9 @@
       <div class="nav-item" onclick="navegarA('presupuesto')">
         <span class="nav-icon">🎯</span> Presupuesto
       </div>
+      <div class="nav-item" onclick="navegarA('anual')">
+        <span class="nav-icon">📅</span> Año completo
+      </div>
       <div class="nav-sep">Config</div>
       <div class="nav-item" onclick="navegarA('config')">
         <span class="nav-icon">⚙️</span> Categorías y Fuentes
@@ -1682,6 +1685,43 @@
         </p>
         <div id="pres-msg" style="margin-top:.5rem;font-size:.85rem;min-height:1.2em"></div>
       </div><!-- /page-presupuesto -->
+
+      <!-- ── PÁGINA AÑO COMPLETO ────────────────────────── -->
+      <div id="page-anual" class="page">
+        <div class="page-header">
+          <h1>Año completo</h1>
+          <div class="mes-selector">
+            <select id="anual-anio" onchange="cargarAnual()"></select>
+          </div>
+        </div>
+
+        <!-- KPIs anuales -->
+        <div class="kpi-grid" id="anual-kpis" style="margin-bottom:1.2rem"></div>
+
+        <!-- Gráfico barras por mes -->
+        <div class="chart-card full" style="margin-bottom:1.2rem">
+          <div class="chart-title">Ingresos vs Gastos — mes a mes</div>
+          <div class="chart-wrap" style="height:280px"><canvas id="chart-anual-barras"></canvas></div>
+        </div>
+
+        <!-- Tabla top categorías -->
+        <div class="chart-card" style="padding:0;overflow:hidden">
+          <table class="tabla" style="margin:0">
+            <thead>
+              <tr>
+                <th>Categoría</th>
+                <th style="text-align:right">Total ARS</th>
+                <th style="text-align:right">Meses activos</th>
+                <th style="text-align:right">Prom. mensual</th>
+                <th style="text-align:right">% del gasto</th>
+              </tr>
+            </thead>
+            <tbody id="anual-tbody">
+              <tr><td colspan="5"><div class="loading"><div class="spinner"></div> Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div><!-- /page-anual -->
 
       <!-- ── PÁGINA CATEGORÍAS Y FUENTES ──────────────────── -->
       <div id="page-config" class="page">
@@ -3565,15 +3605,120 @@ function cargarCompartidos() {
 }
 
 // ─── NAVEGACIÓN ───────────────────────────────────────────────
+// ─── VISTA ANUAL ─────────────────────────────────────────────
+let chartAnualBarras = null;
+
+function _poblarAnioAnual() {
+  const sel = document.getElementById("anual-anio");
+  if (sel.options.length) return;
+  const hoy = new Date();
+  for (let y = hoy.getFullYear(); y >= hoy.getFullYear() - 4; y--) {
+    const o = document.createElement("option");
+    o.value = y; o.textContent = y;
+    if (y === hoy.getFullYear()) o.selected = true;
+    sel.appendChild(o);
+  }
+}
+
+function cargarAnual() {
+  _poblarAnioAnual();
+  const anio = parseInt(document.getElementById("anual-anio").value);
+  const CATS_INGRESO_ARS = ["Sueldo", "Otros Ingresos", "Intereses"];
+  const MESES_LABEL = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+
+  const txsAnio = allTransac.filter(t => {
+    const d = new Date(t.fecha + "T12:00:00");
+    return d.getFullYear() === anio
+      && t.usuario === USUARIO
+      && (t.moneda || "ARS") === "ARS";
+  });
+
+  const byMes = {};
+  for (let m = 1; m <= 12; m++) byMes[m] = { ingresos: 0, gastos: 0, cats: {} };
+
+  txsAnio.forEach(t => {
+    const m = new Date(t.fecha + "T12:00:00").getMonth() + 1;
+    const monto = Math.abs(Number(t.monto));
+    if (t.tipo === "Ingreso" && CATS_INGRESO_ARS.includes(t.categoria)) {
+      byMes[m].ingresos += monto;
+    } else if (t.tipo === "Gasto") {
+      byMes[m].gastos += monto;
+      byMes[m].cats[t.categoria] = (byMes[m].cats[t.categoria] || 0) + monto;
+    }
+  });
+
+  const totalIng  = Object.values(byMes).reduce((s,m) => s + m.ingresos, 0);
+  const totalGas  = Object.values(byMes).reduce((s,m) => s + m.gastos,   0);
+  const balance   = totalIng - totalGas;
+  const tasaAhorro = totalIng > 0 ? ((balance / totalIng) * 100) : 0;
+  const kpiColor  = (v) => v >= 0 ? "var(--green)" : "var(--red)";
+
+  document.getElementById("anual-kpis").innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Ingresos ${anio}</div><div class="kpi-value" style="color:var(--green)">${fmt(totalIng)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Gastos ${anio}</div><div class="kpi-value" style="color:var(--red)">${fmt(totalGas)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Balance neto</div><div class="kpi-value" style="color:${kpiColor(balance)}">${balance>=0?"+":""}${fmt(balance)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Tasa de ahorro</div><div class="kpi-value" style="color:${kpiColor(tasaAhorro)}">${tasaAhorro.toFixed(1)}%</div></div>
+  `;
+
+  const ctx = document.getElementById("chart-anual-barras");
+  if (chartAnualBarras) chartAnualBarras.destroy();
+  chartAnualBarras = new Chart(ctx, {
+    data: {
+      labels: MESES_LABEL,
+      datasets: [
+        { type:"bar", label:"Ingresos", data: Object.values(byMes).map(m=>m.ingresos),
+          backgroundColor:"rgba(52,211,153,0.7)", borderRadius:5 },
+        { type:"bar", label:"Gastos",   data: Object.values(byMes).map(m=>m.gastos),
+          backgroundColor:"rgba(248,113,113,0.7)", borderRadius:5 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:"#9090c0", font:{size:12} } } },
+      scales:{
+        x:{ ticks:{color:"#6060a0"}, grid:{color:"rgba(255,255,255,0.04)"} },
+        y:{ ticks:{color:"#6060a0", callback:v=>fmtShort(v)}, grid:{color:"rgba(255,255,255,0.06)"} }
+      }
+    }
+  });
+
+  const catTotals = {}, catMeses = {};
+  for (let m = 1; m <= 12; m++) {
+    Object.entries(byMes[m].cats).forEach(([cat, total]) => {
+      catTotals[cat] = (catTotals[cat] || 0) + total;
+      catMeses[cat]  = (catMeses[cat]  || 0) + 1;
+    });
+  }
+  const sortedCats = Object.entries(catTotals).sort((a,b) => b[1]-a[1]);
+  const tbody = document.getElementById("anual-tbody");
+  if (!sortedCats.length) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Sin datos para ${anio}</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = sortedCats.map(([cat, total]) => {
+    const meses = catMeses[cat];
+    const prom  = total / meses;
+    const pct   = totalGas > 0 ? ((total / totalGas) * 100).toFixed(1) : "0.0";
+    return `<tr>
+      <td>${cat}</td>
+      <td style="text-align:right;font-weight:600;color:var(--red)">${fmt(total)}</td>
+      <td style="text-align:right;color:var(--text-muted)">${meses}</td>
+      <td style="text-align:right;color:var(--text-muted)">${fmt(prom)}</td>
+      <td style="text-align:right;color:var(--text-muted)">${pct}%</td>
+    </tr>`;
+  }).join("");
+}
+
 function navegarA(pagina) {
   document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
   document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
   document.getElementById("page-" + pagina).classList.add("active");
-  const navIdx = { resumen: 0, transacciones: 1, nueva: 2, compartidos: 3, presupuesto: 4, config: 5, importar: 6 };
+  const navIdx = { resumen: 0, transacciones: 1, nueva: 2, compartidos: 3, presupuesto: 4, anual: 5, config: 6, importar: 7 };
   const navItems = document.querySelectorAll(".nav-item");
   if (navIdx[pagina] !== undefined) navItems[navIdx[pagina]].classList.add("active");
   if (pagina === "compartidos") cargarCompartidos();
   if (pagina === "presupuesto") cargarPresupuesto();
+  if (pagina === "anual")       cargarAnual();
   if (pagina === "config")      renderizarConfig();
   // En mobile, cerrar el sidebar al navegar
   closeSidebar();
