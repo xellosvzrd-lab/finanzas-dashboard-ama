@@ -908,6 +908,39 @@
     .comp-grid { grid-template-columns: 1fr; }
   }
 
+  /* ─── BOTTOM NAV (solo mobile) ────────────────────────────── */
+  .bottom-nav {
+    display: none;
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+    background: var(--bg2); border-top: 1px solid var(--border);
+    height: 62px; align-items: stretch;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.35);
+  }
+  .bn-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 3px;
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); font-size: .65rem; font-weight: 600;
+    letter-spacing: .03em; text-transform: uppercase;
+    transition: color .15s; padding: 0; font-family: inherit;
+  }
+  .bn-item:hover, .bn-item.active { color: var(--accent); }
+  .bn-item .bn-icon { font-size: 1.3rem; line-height: 1; }
+  .bn-nueva {
+    flex: 1.2; position: relative; overflow: visible;
+  }
+  .bn-nueva-circle {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), #a06bf5);
+    box-shadow: 0 4px 16px var(--accent-glow);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem; margin-bottom: 2px;
+    transition: transform .15s, box-shadow .15s;
+    margin-top: -14px;
+  }
+  .bn-nueva:hover .bn-nueva-circle { transform: scale(1.08); box-shadow: 0 6px 22px var(--accent-glow); }
+  .bn-nueva span.bn-label { font-size: .65rem; font-weight: 600; color: var(--text-muted); letter-spacing: .03em; text-transform: uppercase; }
+
   /* ─── MOBILE (≤ 768px) ─────────────────────────────────────── */
   @media (max-width: 768px) {
     /* Mostrar header mobile, ocultar sidebar por default */
@@ -921,7 +954,10 @@
     .sidebar.open { transform: translateX(0); }
 
     /* Contenido ocupa todo el ancho */
-    .main { margin-left: 0; padding: 4.5rem 1rem 2rem; }
+    .main { margin-left: 0; padding: 4.5rem 1rem 5.5rem; }
+
+    /* Bottom nav */
+    .bottom-nav { display: flex; }
 
     /* KPIs: 2 columnas + forzar 4-columnas a 2 */
     .kpi-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1264,6 +1300,26 @@
 <!-- Overlay oscuro al abrir sidebar en mobile -->
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 
+<!-- Bottom nav mobile -->
+<nav class="bottom-nav" id="bottom-nav">
+  <button class="bn-item" id="bn-resumen" onclick="navegarA('resumen')">
+    <span class="bn-icon">📊</span><span>Inicio</span>
+  </button>
+  <button class="bn-item" id="bn-transacciones" onclick="navegarA('transacciones')">
+    <span class="bn-icon">📋</span><span>Historial</span>
+  </button>
+  <button class="bn-item bn-nueva" onclick="navegarA('nueva')">
+    <div class="bn-nueva-circle">➕</div>
+    <span class="bn-label">Nueva</span>
+  </button>
+  <button class="bn-item" id="bn-compartidos" onclick="navegarA('compartidos')">
+    <span class="bn-icon">👫</span><span>Compartidos</span>
+  </button>
+  <button class="bn-item" id="bn-menu" onclick="toggleSidebar()">
+    <span class="bn-icon">☰</span><span>Menú</span>
+  </button>
+</nav>
+
 <div id="app">
   <div class="layout">
 
@@ -1295,13 +1351,13 @@
       </div>
       <div class="nav-sep">Config</div>
       <div class="nav-item" onclick="navegarA('config')">
-        <span class="nav-icon">⚙️</span> Categorías y Fuentes
+        <span class="nav-icon">⚙️</span> Configuración
       </div>
       <div class="nav-item" onclick="navegarA('importar')">
-        <span class="nav-icon">📥</span> Importar datos
+        <span class="nav-icon">📥</span> Importar PDF
       </div>
       <div class="sidebar-bottom">
-        <button class="config-btn" onclick="volverConfig()">🔌 Reconectar API</button>
+        <button class="config-btn" onclick="volverConfig()">⚙️ Cambiar configuración</button>
       </div>
     </nav>
 
@@ -1351,16 +1407,6 @@
         </div>
 
         <!-- Banner "Daniel te debe" -->
-        <div class="ama-debe-card">
-          <div class="ama-icon">💳</div>
-          <div class="ama-info">
-            <div class="ama-label">Daniel te debe (acumulado)</div>
-            <div class="ama-value" id="kpi-ama-debe">$0</div>
-            <div class="ama-sub" id="kpi-ama-debe-sub">—</div>
-          </div>
-          <div class="ama-cats" id="ama-debe-cats"></div>
-        </div>
-
         <!-- Gráfico categorías -->
         <div class="charts-grid">
           <div class="chart-card">
@@ -1453,7 +1499,7 @@
                   <th class="col-hide-xs">Tipo</th>
                   <th>Categoría</th>
                   <th class="col-hide-sm">Fuente</th>
-                  <th class="col-hide-sm">Responsabilidad</th>
+                  <th class="col-hide-sm">¿De quién es?</th>
                   <th class="col-hide-sm">Descripción</th>
                   <th style="text-align:right">Monto</th>
                   <th class="col-hide-xs">Moneda</th>
@@ -1472,7 +1518,7 @@
       <div id="page-nueva" class="page">
         <div class="page-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.6rem">
           <h1 style="margin:0">Nueva transacción</h1>
-          <button class="btn-rafaga" onclick="abrirRafaga()" title="Cargar varias transacciones de una vez">⚡ Modo Ráfaga</button>
+          <button class="btn-rafaga" onclick="abrirRafaga()" title="Cargar varias transacciones de una vez">⚡ Carga múltiple</button>
         </div>
         <div class="form-card">
           <div class="form-row">
@@ -1507,7 +1553,7 @@
               <select id="f-categoria"></select>
             </div>
             <div class="form-group">
-              <label>Responsabilidad</label>
+              <label>¿De quién es?</label>
               <select id="f-responsabilidad">
                 <option value="Mío">🙋 Mío</option>
                 <option value="Compartido">👫 Compartido</option>
@@ -3716,12 +3762,18 @@ function navegarA(pagina) {
   const navIdx = { resumen: 0, transacciones: 1, nueva: 2, compartidos: 3, presupuesto: 4, anual: 5, config: 6, importar: 7 };
   const navItems = document.querySelectorAll(".nav-item");
   if (navIdx[pagina] !== undefined) navItems[navIdx[pagina]].classList.add("active");
+  // Sincronizar bottom nav
+  ["bn-resumen","bn-transacciones","bn-compartidos","bn-menu"].forEach(id => {
+    document.getElementById(id)?.classList.remove("active");
+  });
+  const bnMap = { resumen:"bn-resumen", transacciones:"bn-transacciones", compartidos:"bn-compartidos" };
+  if (bnMap[pagina]) document.getElementById(bnMap[pagina])?.classList.add("active");
   if (pagina === "compartidos") cargarCompartidos();
   if (pagina === "presupuesto") cargarPresupuesto();
   if (pagina === "anual")       cargarAnual();
   if (pagina === "config")      renderizarConfig();
-  // En mobile, cerrar el sidebar al navegar
   closeSidebar();
+  window.scrollTo(0, 0);
 }
 
 // ─── SIDEBAR MOBILE ───────────────────────────────────────────
