@@ -22,7 +22,7 @@
 
 ### Dashboard de Daniel
 - **Repo:** `xellosvzrd-lab/finanzas-dashboard`
-- **URL:** GitHub Pages del repo anterior
+- **URL:** https://finanzas-dashboard-oncu.vercel.app/
 - **Archivo:** `index.html` (~4562 líneas) — repo local en `~/Documents/proyectosclaude/finanzas-dashboard-live/`
 - **Usuario fijo:** `USUARIO = "Daniel"`
 - **Responsabilidad opciones:** `["Mío","Compartido","De Ama"]`
@@ -31,7 +31,7 @@
 
 ### Dashboard de Ama
 - **Repo:** `xellosvzrd-lab/finanzas-dashboard-ama`
-- **URL:** GitHub Pages del repo anterior
+- **URL:** https://finanzas-dashboard-ama.vercel.app/
 - **Archivo:** `index.html` (~4689 líneas) — repo local en `~/Documents/proyectosclaude/finanzas-dashboard-ama-live/`
 - **Usuario fijo:** `USUARIO = "Ama"`
 - **Responsabilidad opciones:** `["Mío","Compartido","De Daniel"]`
