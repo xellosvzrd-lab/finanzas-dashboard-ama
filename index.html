@@ -777,6 +777,11 @@
     transform: translateY(-2px); box-shadow: 0 6px 22px var(--accent-glow);
   }
   .btn-primary:active { transform: translateY(0); }
+  .btn-ghost {
+    background: var(--bg2); color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--border2); color: var(--text); }
   .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
   .btn-outline {
     background: transparent; color: var(--text-muted);
@@ -1305,8 +1310,8 @@
         <div class="page-header">
           <h1>Resumen del mes</h1>
           <div class="mes-selector">
-            <select id="sel-mes-resumen" onchange="cargarResumenMes()"></select>
-            <select id="sel-anio-resumen" onchange="cargarResumenMes()"></select>
+            <select id="sel-mes-resumen" onchange="guardarSelFecha();cargarResumenMes()"></select>
+            <select id="sel-anio-resumen" onchange="guardarSelFecha();cargarResumenMes()"></select>
           </div>
         </div>
 
@@ -1388,11 +1393,14 @@
       <div id="page-transacciones" class="page">
         <div class="page-header">
           <h1>Historial de transacciones</h1>
-          <button class="btn btn-primary" onclick="navegarA('nueva')">+ Nueva</button>
+          <div style="display:flex;gap:.5rem;align-items:center">
+            <button class="btn btn-ghost" onclick="exportarCSV()" title="Descargar CSV con el filtro actual">📥 CSV</button>
+            <button class="btn btn-primary" onclick="navegarA('nueva')">+ Nueva</button>
+          </div>
         </div>
         <div class="table-filters">
-          <select id="fil-mes" onchange="filtrarTabla()"></select>
-          <select id="fil-anio" onchange="filtrarTabla()"></select>
+          <select id="fil-mes" onchange="guardarSelFecha();filtrarTabla()"></select>
+          <select id="fil-anio" onchange="guardarSelFecha();filtrarTabla()"></select>
           <select id="fil-tipo" onchange="filtrarTabla()">
             <option value="">Todos los tipos</option>
             <option value="Ingreso">Ingresos</option>
@@ -2202,6 +2210,20 @@ async function cargarTodasTransacciones() {
 }
 
 // ─── SELECTORES FECHA ─────────────────────────────────────────
+const SEL_MES_KEY  = "fp_ama_sel_mes";
+const SEL_ANIO_KEY = "fp_ama_sel_anio";
+const FIL_MES_KEY  = "fp_ama_fil_mes";
+const FIL_ANIO_KEY = "fp_ama_fil_anio";
+
+function guardarSelFecha() {
+  try {
+    localStorage.setItem(SEL_MES_KEY,  document.getElementById("sel-mes-resumen")?.value || "");
+    localStorage.setItem(SEL_ANIO_KEY, document.getElementById("sel-anio-resumen")?.value || "");
+    localStorage.setItem(FIL_MES_KEY,  document.getElementById("fil-mes")?.value || "");
+    localStorage.setItem(FIL_ANIO_KEY, document.getElementById("fil-anio")?.value || "");
+  } catch(e) {}
+}
+
 function poblarSelectoresFecha() {
   const hoy  = new Date();
   const meses = [
@@ -2238,6 +2260,18 @@ function poblarSelectoresFecha() {
   Array.from(srAnio.options).forEach(o => {
     if (o.value === "") srAnio.removeChild(o);
   });
+
+  // Restaurar valores guardados
+  try {
+    const savedSelMes  = localStorage.getItem(SEL_MES_KEY);
+    const savedSelAnio = localStorage.getItem(SEL_ANIO_KEY);
+    const savedFilMes  = localStorage.getItem(FIL_MES_KEY);
+    const savedFilAnio = localStorage.getItem(FIL_ANIO_KEY);
+    if (savedSelMes)  { const el = document.getElementById("sel-mes-resumen"); if (el) el.value = savedSelMes; }
+    if (savedSelAnio) { const el = document.getElementById("sel-anio-resumen"); if (el) el.value = savedSelAnio; }
+    if (savedFilMes)  { const el = document.getElementById("fil-mes"); if (el) el.value = savedFilMes; }
+    if (savedFilAnio) { const el = document.getElementById("fil-anio"); if (el) el.value = savedFilAnio; }
+  } catch(e) {}
 }
 
 // ─── RESUMEN MES ─────────────────────────────────────────────
@@ -2803,6 +2837,53 @@ function filtrarTabla() {
       </td>
     </tr>`
   }).join("");
+}
+
+// ─── EXPORTAR CSV ────────────────────────────────────────────
+function exportarCSV() {
+  const mes    = document.getElementById("fil-mes").value;
+  const anio   = document.getElementById("fil-anio").value;
+  const tipo   = document.getElementById("fil-tipo").value;
+  const fuente = document.getElementById("fil-fuente")?.value || "";
+  const resp   = document.getElementById("fil-resp")?.value || "";
+  const buscar = document.getElementById("fil-buscar").value.toLowerCase();
+  const catsSelec = new Set(
+    [...document.querySelectorAll("#fil-cat-options input:checked")].map(i => i.value)
+  );
+  const todasCats = catsSelec.size === 0 ||
+    catsSelec.size === document.querySelectorAll("#fil-cat-options input").length;
+
+  const datos = allTransac.filter(t => {
+    const d = new Date(t.fecha + "T12:00:00");
+    return t.usuario === USUARIO
+      && (!mes    || (d.getMonth()+1) === parseInt(mes))
+      && (!anio   || d.getFullYear()  === parseInt(anio))
+      && (!tipo   || t.tipo === tipo)
+      && (todasCats || catsSelec.has(t.categoria))
+      && (!fuente || (t.fuente || "") === fuente)
+      && (!resp   || (t.responsabilidad || "Mío") === resp)
+      && (!buscar || (t.descripcion||"").toLowerCase().includes(buscar)
+                  || t.categoria.toLowerCase().includes(buscar)
+                  || (t.fuente||"").toLowerCase().includes(buscar));
+  }).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+
+  if (!datos.length) { showToast("Sin datos para exportar", "err"); return; }
+
+  const cols = ["Fecha","Tipo","Categoría","Monto","Moneda","Fuente","Responsabilidad","Descripción"];
+  const esc  = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
+  const rows = datos.map(t => [
+    t.fecha, t.tipo, t.categoria, t.monto, t.moneda || "ARS",
+    t.fuente || "", t.responsabilidad || "Mío", t.descripcion || ""
+  ].map(esc).join(","));
+
+  const csv  = [cols.map(esc).join(","), ...rows].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  const tag  = (mes ? mes + "-" : "") + (anio || new Date().getFullYear());
+  a.href = url; a.download = `finanzas-${USUARIO.toLowerCase()}-${tag}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast(`✅ ${datos.length} transacciones exportadas`, "ok");
 }
 
 // ─── ELIMINAR ─────────────────────────────────────────────────
