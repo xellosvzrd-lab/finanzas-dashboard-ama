@@ -1,0 +1,75 @@
+name: Validate
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validar dashboard Ama
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verificar que index.html existe y tiene contenido
+        run: |
+          if [ ! -f index.html ]; then
+            echo "❌ index.html no encontrado"
+            exit 1
+          fi
+          SIZE=$(wc -c < index.html)
+          echo "📄 index.html: $SIZE bytes"
+          if [ "$SIZE" -lt 50000 ]; then
+            echo "❌ index.html demasiado pequeño ($SIZE bytes) — probable corrupción"
+            exit 1
+          fi
+          echo "✅ Tamaño OK"
+
+      - name: Verificar elementos críticos presentes
+        run: |
+          check() {
+            grep -q "$1" index.html && echo "✅ $2" || { echo "❌ Falta: $2"; exit 1; }
+          }
+          check "getTransacciones"    "endpoint getTransacciones"
+          check "addTransaccion"      "endpoint addTransaccion"
+          check "deleteTransaccion"   "endpoint deleteTransaccion"
+          check "API_URL"             "constante API_URL"
+          check "USUARIO"             "constante USUARIO"
+          check "allTransac"          "array allTransac"
+          check "cargarResumenMes"    "función cargarResumenMes"
+          check "filtrarTabla"        "función filtrarTabla"
+          check "cargarCompartidos"   "función cargarCompartidos"
+
+      - name: Extraer JS inline y verificar sintaxis
+        run: |
+          node -e "
+            const fs = require('fs');
+            const html = fs.readFileSync('index.html', 'utf8');
+            const re = /<script(?![^>]*\bsrc\b)[^>]*>([\s\S]*?)<\/script>/gi;
+            const blocks = [];
+            let m;
+            while ((m = re.exec(html)) !== null) {
+              blocks.push(m[1]);
+            }
+            if (!blocks.length) { console.error('No se encontraron bloques JS'); process.exit(1); }
+            fs.writeFileSync('/tmp/extracted.js', blocks.join('\n'));
+            console.log('Extraídos ' + blocks.length + ' bloques JS (' + fs.statSync('/tmp/extracted.js').size + ' bytes)');
+          "
+          node --check /tmp/extracted.js && echo "✅ Sintaxis JS OK" || { echo "❌ Error de sintaxis JS"; exit 1; }
+
+      - name: Verificar estructura HTML básica
+        run: |
+          check_tag() {
+            grep -qi "$1" index.html && echo "✅ $1 presente" || { echo "❌ Falta $1"; exit 1; }
+          }
+          check_tag "<html"
+          check_tag "<head"
+          check_tag "<body"
+          check_tag "Chart.js"
+          check_tag "page-resumen"
+          check_tag "page-transacciones"
+          check_tag "page-compartidos"
